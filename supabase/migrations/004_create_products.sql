@@ -24,3 +24,4 @@ CREATE TABLE IF NOT EXISTS public.products (
 );
 
 COMMENT ON TABLE public.products IS 'Restaurant menu food, snack and drink items';
+

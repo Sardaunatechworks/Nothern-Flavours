@@ -10,36 +10,19 @@ export default function Notifications() {
   useEffect(() => {
     async function fetchNotifications() {
       if (isSupabaseConfigured && supabase) {
-        const { data } = await supabase
-          .from('notifications')
-          .select('*')
-          .order('created_at', { ascending: false });
+        try {
+          const { data } = await supabase
+            .from('notifications')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-        if (data) {
-          setNotifications(data);
-          setLoading(false);
-          return;
+          if (data) {
+            setNotifications(data);
+          }
+        } catch (e) {
+          console.error(e);
         }
       }
-
-      setNotifications([
-        {
-          id: 'n1',
-          title: 'New Order Received: NF-20261114-4821',
-          message: 'A new delivery order for ₦5,800.00 has arrived and requires review.',
-          type: 'order',
-          is_read: false,
-          created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-        },
-        {
-          id: 'n2',
-          title: 'Low Stock Alert: Tuwon Shinkafa',
-          message: 'Stock has reached 8 portions (threshold: 8). Consider restocking.',
-          type: 'inventory',
-          is_read: true,
-          created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        },
-      ]);
       setLoading(false);
     }
 
@@ -67,7 +50,9 @@ export default function Notifications() {
       </div>
 
       <div className="bg-white rounded-2xl border border-stone-200 shadow-soft overflow-hidden divide-y divide-stone-100">
-        {notifications.length > 0 ? (
+        {loading ? (
+          <div className="py-16 text-center text-xs text-stone-400">Loading alerts...</div>
+        ) : notifications.length > 0 ? (
           notifications.map((item) => (
             <div
               key={item.id}
@@ -119,7 +104,7 @@ export default function Notifications() {
           ))
         ) : (
           <div className="py-16 text-center text-xs text-stone-400">
-            No active operational notifications.
+            No operational notifications. New incoming orders will trigger notifications here.
           </div>
         )}
       </div>

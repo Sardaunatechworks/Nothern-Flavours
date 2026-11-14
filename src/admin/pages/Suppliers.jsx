@@ -13,29 +13,8 @@ export default function Suppliers() {
       const { data } = await supabase.from('suppliers').select('*').order('name');
       if (data) {
         setSuppliers(data);
-        setLoading(false);
-        return;
       }
     }
-
-    setSuppliers([
-      {
-        id: 's1',
-        name: 'Dutse Central Grain & Rice Wholesalers',
-        phone: '08021112233',
-        email: 'grains@dutsemarket.ng',
-        address: 'Stall 44, Yalwawa Main Market, Dutse',
-        notes: 'Supplies Nigerian parboiled rice and semo weekly.',
-      },
-      {
-        id: 's2',
-        name: 'Jigawa Fresh Poultry & Farms',
-        phone: '08039998877',
-        email: 'poultry@jigawafarms.ng',
-        address: 'Kudai Road, Dutse',
-        notes: 'Freshly dressed chickens and turkey cuts.',
-      },
-    ]);
     setLoading(false);
   };
 
@@ -55,9 +34,14 @@ export default function Suppliers() {
     };
 
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('suppliers').insert(newSupp);
+      const { data, error } = await supabase.from('suppliers').insert(newSupp).select().single();
+      if (error) {
+        Swal.fire('Error', error.message, 'error');
+        return;
+      }
+      setSuppliers([...suppliers, data]);
     }
-    setSuppliers([...suppliers, { id: `supp-${Date.now()}`, ...newSupp }]);
+
     setIsModalOpen(false);
     Swal.fire('Saved', 'Supplier contact recorded.', 'success');
   };
@@ -83,48 +67,56 @@ export default function Suppliers() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {suppliers.map((s) => (
-          <div
-            key={s.id}
-            className="bg-white p-5 rounded-2xl border border-stone-200 shadow-soft space-y-3"
-          >
-            <div className="flex items-start justify-between">
-              <h3 className="font-serif text-base font-bold text-forest-950">{s.name}</h3>
-              <span className="p-2 rounded-xl bg-forest-50 text-forest-800">
-                <Truck className="w-4 h-4" />
-              </span>
-            </div>
+      {loading ? (
+        <div className="py-16 text-center text-xs text-stone-400">Loading suppliers...</div>
+      ) : suppliers.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {suppliers.map((s) => (
+            <div
+              key={s.id}
+              className="bg-white p-5 rounded-2xl border border-stone-200 shadow-soft space-y-3"
+            >
+              <div className="flex items-start justify-between">
+                <h3 className="font-serif text-base font-bold text-forest-950">{s.name}</h3>
+                <span className="p-2 rounded-xl bg-forest-50 text-forest-800">
+                  <Truck className="w-4 h-4" />
+                </span>
+              </div>
 
-            <div className="space-y-1.5 text-xs text-stone-600">
-              {s.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-stone-400" />
-                  <span>{s.phone}</span>
-                </div>
-              )}
-              {s.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="w-3.5 h-3.5 text-stone-400" />
-                  <span>{s.email}</span>
-                </div>
-              )}
-              {s.address && (
-                <div className="flex items-start gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
-                  <span>{s.address}</span>
-                </div>
+              <div className="space-y-1.5 text-xs text-stone-600">
+                {s.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-3.5 h-3.5 text-stone-400" />
+                    <span>{s.phone}</span>
+                  </div>
+                )}
+                {s.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5 text-stone-400" />
+                    <span>{s.email}</span>
+                  </div>
+                )}
+                {s.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
+                    <span>{s.address}</span>
+                  </div>
+                )}
+              </div>
+
+              {s.notes && (
+                <p className="text-[11px] text-stone-500 bg-stone-50 p-2 rounded-lg italic">
+                  {s.notes}
+                </p>
               )}
             </div>
-
-            {s.notes && (
-              <p className="text-[11px] text-stone-500 bg-stone-50 p-2 rounded-lg italic">
-                {s.notes}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center text-xs text-stone-400">
+          No suppliers recorded yet. Click "Add Supplier" to register vendor contacts.
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4">

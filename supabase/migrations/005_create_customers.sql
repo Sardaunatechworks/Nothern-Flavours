@@ -12,3 +12,4 @@ CREATE TABLE IF NOT EXISTS public.customers (
 );
 
 COMMENT ON TABLE public.customers IS 'Restaurant customers identified primarily by normalized phone number';
+

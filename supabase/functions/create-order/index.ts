@@ -167,3 +167,4 @@ _Please confirm acceptance and preparation for order ${data.order_number}._`;
     );
   }
 });
+

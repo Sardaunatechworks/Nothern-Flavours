@@ -89,3 +89,4 @@ export default function MenuCatalog({ categories, products, menuRef }) {
     </section>
   );
 }
+

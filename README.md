@@ -137,3 +137,4 @@ Located in `supabase/functions/`:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_PUBLISHABLE_KEY`
 4. The included `vercel.json` ensures client-side routes (`/admin`, `/admin/orders`, `/order-confirmation/:id`) route seamlessly without 404 errors.
+

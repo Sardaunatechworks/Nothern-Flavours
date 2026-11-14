@@ -59,3 +59,4 @@ TO authenticated
 WITH CHECK (
     bucket_id = 'avatars'
 );
+

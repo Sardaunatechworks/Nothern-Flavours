@@ -14,3 +14,4 @@ CREATE TABLE IF NOT EXISTS public.categories (
 );
 
 COMMENT ON TABLE public.categories IS 'Menu categories for restaurant ordering catalog';
+

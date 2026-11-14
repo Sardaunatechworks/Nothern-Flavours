@@ -22,3 +22,4 @@ GRANT EXECUTE ON FUNCTION public.get_dashboard_statistics() TO authenticated, se
 GRANT EXECUTE ON FUNCTION public.get_sales_summary(TIMESTAMPTZ, TIMESTAMPTZ) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_best_selling_products(INTEGER) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_inventory_valuation() TO authenticated, service_role;
+

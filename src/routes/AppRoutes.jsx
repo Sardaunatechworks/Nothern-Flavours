@@ -21,6 +21,7 @@ import Staff from '../admin/pages/Staff';
 import Notifications from '../admin/pages/Notifications';
 import ActivityLogs from '../admin/pages/ActivityLogs';
 import Settings from '../admin/pages/Settings';
+import DeliveryPricing from '../admin/pages/DeliveryPricing';
 
 // Route guard
 import ProtectedRoute from './ProtectedRoute';
@@ -126,6 +127,14 @@ export default function AppRoutes() {
           }
         />
         <Route
+          path="delivery"
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'manager']}>
+              <DeliveryPricing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="settings"
           element={
             <ProtectedRoute allowedRoles={['super_admin', 'manager']}>
@@ -141,3 +150,4 @@ export default function AppRoutes() {
     </Routes>
   );
 }
+

@@ -26,3 +26,4 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 
 COMMENT ON TABLE public.notifications IS 'Operational notifications for staff and managers';
 COMMENT ON TABLE public.audit_logs IS 'Append-only audit trail for administrative changes';
+

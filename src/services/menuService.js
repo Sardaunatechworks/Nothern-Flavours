@@ -1,10 +1,9 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { INITIAL_CATEGORIES, INITIAL_PRODUCTS } from '../data/initialMenuData';
 
 export const menuService = {
   async getCategories() {
     if (!isSupabaseConfigured || !supabase) {
-      return INITIAL_CATEGORIES;
+      return [{ id: 'all', name: 'All', slug: 'all', sort_order: 0 }];
     }
 
     try {
@@ -14,18 +13,18 @@ export const menuService = {
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
 
-      if (error || !data || data.length === 0) {
-        return INITIAL_CATEGORIES;
+      if (error || !data) {
+        return [{ id: 'all', name: 'All', slug: 'all', sort_order: 0 }];
       }
       return [{ id: 'all', name: 'All', slug: 'all', sort_order: 0 }, ...data];
     } catch {
-      return INITIAL_CATEGORIES;
+      return [{ id: 'all', name: 'All', slug: 'all', sort_order: 0 }];
     }
   },
 
   async getProducts() {
     if (!isSupabaseConfigured || !supabase) {
-      return INITIAL_PRODUCTS;
+      return [];
     }
 
     try {
@@ -36,12 +35,12 @@ export const menuService = {
         .eq('is_available', true)
         .order('sort_order', { ascending: true });
 
-      if (error || !data || data.length === 0) {
-        return INITIAL_PRODUCTS;
+      if (error || !data) {
+        return [];
       }
       return data;
     } catch {
-      return INITIAL_PRODUCTS;
+      return [];
     }
   },
 
@@ -66,12 +65,77 @@ export const menuService = {
         .from('restaurant_settings')
         .select('*')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error || !data) return defaultSettings;
       return data;
     } catch {
       return defaultSettings;
     }
+  },
+
+  // DELIVERY PRICING MANAGEMENT
+  async getDeliveryZones() {
+    if (!isSupabaseConfigured || !supabase) {
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('delivery_settings')
+        .select('*')
+        .order('delivery_fee', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.error('Error fetching delivery zones:', err);
+      return [];
+    }
+  },
+
+  async updateBaseDeliveryFee(amount) {
+    if (!isSupabaseConfigured || !supabase) return;
+    const { error } = await supabase
+      .from('restaurant_settings')
+      .update({ default_delivery_fee: parseFloat(amount) })
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // update all/singleton
+    if (error) throw error;
+  },
+
+  async createDeliveryZone({ name, delivery_fee }) {
+    if (!isSupabaseConfigured || !supabase) return null;
+    const { data, error } = await supabase
+      .from('delivery_settings')
+      .insert({
+        name,
+        delivery_fee: parseFloat(delivery_fee),
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async updateDeliveryZone(id, updates) {
+    if (!isSupabaseConfigured || !supabase) return null;
+    const { data, error } = await supabase
+      .from('delivery_settings')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteDeliveryZone(id) {
+    if (!isSupabaseConfigured || !supabase) return;
+    const { error } = await supabase
+      .from('delivery_settings')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
   },
 };

@@ -132,3 +132,4 @@ AS $$
     FROM public.products
     WHERE deleted_at IS NULL AND track_stock = TRUE;
 $$;
+

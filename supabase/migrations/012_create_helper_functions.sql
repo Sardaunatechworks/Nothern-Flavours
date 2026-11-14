@@ -76,3 +76,4 @@ REVOKE ALL ON FUNCTION private.is_active_user() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION private.get_user_role() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION private.has_role(TEXT[]) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION private.is_active_user() TO authenticated, service_role;
+

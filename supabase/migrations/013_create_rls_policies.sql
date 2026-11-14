@@ -168,3 +168,4 @@ CREATE POLICY "audit_logs_admin_select"
 ON public.audit_logs FOR SELECT
 TO authenticated
 USING (private.has_role(ARRAY['super_admin', 'manager']));
+

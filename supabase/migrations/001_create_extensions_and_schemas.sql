@@ -10,3 +10,4 @@ CREATE SCHEMA IF NOT EXISTS private;
 -- Restrict usage on private schema
 REVOKE ALL ON SCHEMA private FROM PUBLIC;
 GRANT USAGE ON SCHEMA private TO authenticated, service_role;
+

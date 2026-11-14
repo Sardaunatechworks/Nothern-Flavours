@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { X, CheckCircle, MessageSquare, AlertCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, CheckCircle, MessageSquare, AlertCircle, Loader2, MapPin } from 'lucide-react';
 import { checkoutSchema } from '../../schemas/orderSchema';
 import { useBasket } from '../../context/BasketContext';
 import { orderService } from '../../services/orderService';
+import { menuService } from '../../services/menuService';
 import { formatNaira } from '../../utils/formatters';
 
 export default function CheckoutModal({ onClose, onSuccess }) {
@@ -12,6 +13,10 @@ export default function CheckoutModal({ onClose, onSuccess }) {
   const [fieldErrors, setFieldErrors] = useState({});
   const [orderConfirmation, setOrderConfirmation] = useState(null);
 
+  const [baseDeliveryFee, setBaseDeliveryFee] = useState(1000);
+  const [deliveryZones, setDeliveryZones] = useState([]);
+  const [selectedZoneId, setSelectedZoneId] = useState('');
+
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -20,7 +25,39 @@ export default function CheckoutModal({ onClose, onSuccess }) {
     notes: '',
   });
 
-  const deliveryFee = formData.orderType === 'delivery' ? 1000 : 0;
+  useEffect(() => {
+    async function loadDeliveryConfig() {
+      try {
+        const [settings, zones] = await Promise.all([
+          menuService.getRestaurantSettings(),
+          menuService.getDeliveryZones(),
+        ]);
+        if (settings?.default_delivery_fee != null) {
+          setBaseDeliveryFee(Number(settings.default_delivery_fee));
+        }
+        if (zones && zones.length > 0) {
+          const activeZones = zones.filter((z) => z.is_active);
+          setDeliveryZones(activeZones);
+          if (activeZones.length > 0) {
+            setSelectedZoneId(activeZones[0].id);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading delivery settings', e);
+      }
+    }
+
+    loadDeliveryConfig();
+  }, []);
+
+  const selectedZone = deliveryZones.find((z) => z.id === selectedZoneId);
+  const deliveryFee =
+    formData.orderType === 'delivery'
+      ? selectedZone
+        ? Number(selectedZone.delivery_fee)
+        : baseDeliveryFee
+      : 0;
+
   const grandTotal = subtotal + deliveryFee;
 
   const handleChange = (e) => {
@@ -51,12 +88,17 @@ export default function CheckoutModal({ onClose, onSuccess }) {
 
     setSubmitting(true);
 
+    const fullAddress =
+      formData.orderType === 'delivery' && selectedZone
+        ? `[Zone: ${selectedZone.name}] ${formData.deliveryAddress}`
+        : formData.deliveryAddress;
+
     try {
       const result = await orderService.submitCustomerOrder({
         fullName: formData.fullName,
         phone: formData.phone,
         orderType: formData.orderType,
-        deliveryAddress: formData.deliveryAddress,
+        deliveryAddress: fullAddress,
         notes: formData.notes,
         items: basket,
       });
@@ -66,7 +108,7 @@ export default function CheckoutModal({ onClose, onSuccess }) {
         fullName: formData.fullName,
         phone: formData.phone,
         orderType: formData.orderType,
-        deliveryAddress: formData.deliveryAddress,
+        deliveryAddress: fullAddress,
         notes: formData.notes,
         items: basket,
         subtotal: result.subtotal || subtotal,
@@ -231,7 +273,9 @@ export default function CheckoutModal({ onClose, onSuccess }) {
                       onChange={handleChange}
                       className="sr-only"
                     />
-                    <span className="text-xs">🚗 Delivery (+₦1,000)</span>
+                    <span className="text-xs">
+                      🚗 Delivery (+{formatNaira(deliveryFee)})
+                    </span>
                   </label>
 
                   <label
@@ -253,6 +297,26 @@ export default function CheckoutModal({ onClose, onSuccess }) {
                   </label>
                 </div>
               </div>
+
+              {/* Delivery Zone Selection (if delivery) */}
+              {formData.orderType === 'delivery' && deliveryZones.length > 0 && (
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-stone-700">
+                    Delivery Neighbourhood / Area <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={selectedZoneId}
+                    onChange={(e) => setSelectedZoneId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs font-bold text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-800 bg-white"
+                  >
+                    {deliveryZones.map((z) => (
+                      <option key={z.id} value={z.id}>
+                        {z.name} — {formatNaira(z.delivery_fee)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Delivery Address (only if delivery) */}
               {formData.orderType === 'delivery' && (

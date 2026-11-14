@@ -99,6 +99,12 @@ export default function AdminLayout() {
       roles: ['super_admin', 'manager'],
     },
     {
+      label: 'Delivery Pricing',
+      path: '/admin/delivery',
+      icon: Truck,
+      roles: ['super_admin', 'manager'],
+    },
+    {
       label: 'Settings',
       path: '/admin/settings',
       icon: Settings,
@@ -234,3 +240,4 @@ export default function AdminLayout() {
     </div>
   );
 }
+

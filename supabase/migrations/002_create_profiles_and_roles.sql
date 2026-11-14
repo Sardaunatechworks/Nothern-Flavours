@@ -17,3 +17,4 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Comment on table and columns
 COMMENT ON TABLE public.profiles IS 'Staff and administrative profiles linked to Supabase Auth';
 COMMENT ON COLUMN public.profiles.role IS 'One of: super_admin, manager, order_manager, inventory_manager, staff';
+

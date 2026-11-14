@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../../services/supabase';
 import { formatNaira, formatDateLagos } from '../../utils/formatters';
-import { Users, Search, Phone, ShoppingBag } from 'lucide-react';
+import { Users, Search } from 'lucide-react';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -11,57 +11,31 @@ export default function Customers() {
   useEffect(() => {
     async function fetchCustomers() {
       if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase
-          .from('customers')
-          .select(`
-            id, full_name, phone, created_at,
-            orders(id, total, status)
-          `)
-          .order('created_at', { ascending: false });
+        try {
+          const { data, error } = await supabase
+            .from('customers')
+            .select(`
+              id, full_name, phone, created_at,
+              orders(id, total, status)
+            `)
+            .order('created_at', { ascending: false });
 
-        if (!error && data) {
-          const mapped = data.map((c) => {
-            const completedOrders = c.orders?.filter((o) => o.status === 'completed') || [];
-            const totalSpent = completedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-            return {
-              ...c,
-              order_count: c.orders?.length || 0,
-              total_spent: totalSpent,
-            };
-          });
-          setCustomers(mapped);
-          setLoading(false);
-          return;
+          if (!error && data) {
+            const mapped = data.map((c) => {
+              const completedOrders = c.orders?.filter((o) => o.status === 'completed') || [];
+              const totalSpent = completedOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+              return {
+                ...c,
+                order_count: c.orders?.length || 0,
+                total_spent: totalSpent,
+              };
+            });
+            setCustomers(mapped);
+          }
+        } catch (e) {
+          console.error(e);
         }
       }
-
-      // Demo fallback
-      setCustomers([
-        {
-          id: 'c1',
-          full_name: 'Fatima Mohammed',
-          phone: '08031234567',
-          created_at: new Date().toISOString(),
-          order_count: 5,
-          total_spent: 24500,
-        },
-        {
-          id: 'c2',
-          full_name: 'Ibrahim Shehu',
-          phone: '09068202567',
-          created_at: new Date().toISOString(),
-          order_count: 3,
-          total_spent: 18200,
-        },
-        {
-          id: 'c3',
-          full_name: 'Amina Bello',
-          phone: '08129876543',
-          created_at: new Date().toISOString(),
-          order_count: 8,
-          total_spent: 42000,
-        },
-      ]);
       setLoading(false);
     }
 
@@ -102,7 +76,7 @@ export default function Customers() {
       <div className="bg-white rounded-2xl border border-stone-200 shadow-soft overflow-hidden">
         {loading ? (
           <div className="py-16 text-center text-xs text-stone-400">Loading customers...</div>
-        ) : (
+        ) : filtered.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-stone-50 text-stone-500 uppercase tracking-wider border-b border-stone-200">
@@ -126,6 +100,10 @@ export default function Customers() {
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : (
+          <div className="py-16 text-center text-xs text-stone-400">
+            No customer records yet. Customers will appear here automatically when orders are placed.
           </div>
         )}
       </div>

@@ -31,3 +31,4 @@ CREATE TABLE IF NOT EXISTS public.delivery_settings (
 INSERT INTO public.restaurant_settings (id, restaurant_name, phone, whatsapp_number, address)
 VALUES ('00000000-0000-0000-0000-000000000001', 'Northern Flavours Restaurant', '09068202567', '2349068202567', 'Gajambe Plaza, Yalwawa, Dutse, Jigawa State, Nigeria')
 ON CONFLICT (id) DO NOTHING;
+

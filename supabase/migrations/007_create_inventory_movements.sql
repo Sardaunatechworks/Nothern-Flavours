@@ -22,3 +22,4 @@ ON public.inventory_movements (product_id, reference_order_id, movement_type)
 WHERE reference_order_id IS NOT NULL AND movement_type IN ('order_deduction', 'order_reversal');
 
 COMMENT ON TABLE public.inventory_movements IS 'Immutable stock movement transaction log';
+

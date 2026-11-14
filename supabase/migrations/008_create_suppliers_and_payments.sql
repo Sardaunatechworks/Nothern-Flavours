@@ -26,3 +26,4 @@ CREATE TABLE IF NOT EXISTS public.payments (
 
 COMMENT ON TABLE public.suppliers IS 'Operational vendor contacts';
 COMMENT ON TABLE public.payments IS 'Verified payment transactions';
+

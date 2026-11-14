@@ -44,3 +44,4 @@ export default function HeroSection({ onExploreClick }) {
     </section>
   );
 }
+

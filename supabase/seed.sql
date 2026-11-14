@@ -124,3 +124,4 @@ VALUES
     ('Dutse Outer (FUD Campus, G9, Limawa)', 1500.00, true),
     ('Express Delivery', 2000.00, true)
 ON CONFLICT DO NOTHING;
+

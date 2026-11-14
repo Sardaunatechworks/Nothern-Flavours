@@ -40,3 +40,4 @@ CREATE TABLE IF NOT EXISTS public.order_items (
 
 COMMENT ON TABLE public.orders IS 'Customer orders for delivery or pickup';
 COMMENT ON TABLE public.order_items IS 'Immutable price and product snapshots for order lines';
+

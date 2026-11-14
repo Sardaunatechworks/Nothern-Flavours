@@ -47,3 +47,4 @@ export function normalizeNigerianPhone(phone) {
   }
   return cleaned;
 }
+

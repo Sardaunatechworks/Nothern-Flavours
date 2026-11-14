@@ -1,5 +1,4 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { INITIAL_PRODUCTS } from '../data/initialMenuData';
 
 export const inventoryService = {
   async getInventoryProducts() {
@@ -14,39 +13,36 @@ export const inventoryService = {
         .is('deleted_at', null)
         .order('name');
       if (error) throw error;
-      return data;
+      return data || [];
     }
-
-    return INITIAL_PRODUCTS;
+    return [];
   },
 
   async addStock(productId, quantity, reason = 'Standard restocking') {
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.rpc('add_product_stock', {
-        p_product_id: productId,
-        p_quantity: quantity,
-        p_reason: reason,
-      });
-      if (error) throw error;
-      return data;
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Database not connected');
     }
-
-    return { success: true, new_quantity: 50 + quantity };
+    const { data, error } = await supabase.rpc('add_product_stock', {
+      p_product_id: productId,
+      p_quantity: quantity,
+      p_reason: reason,
+    });
+    if (error) throw error;
+    return data;
   },
 
   async adjustStock(productId, quantityChange, movementType, reason) {
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.rpc('adjust_product_stock', {
-        p_product_id: productId,
-        p_quantity_change: quantityChange,
-        p_movement_type: movementType,
-        p_reason: reason,
-      });
-      if (error) throw error;
-      return data;
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Database not connected');
     }
-
-    return { success: true };
+    const { data, error } = await supabase.rpc('adjust_product_stock', {
+      p_product_id: productId,
+      p_quantity_change: quantityChange,
+      p_movement_type: movementType,
+      p_reason: reason,
+    });
+    if (error) throw error;
+    return data;
   },
 
   async getMovements(limit = 100) {
@@ -61,9 +57,8 @@ export const inventoryService = {
         .order('created_at', { ascending: false })
         .limit(limit);
       if (error) throw error;
-      return data;
+      return data || [];
     }
-
     return [];
   },
 };
