@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { X, CheckCircle, MessageSquare, AlertCircle, Loader2 } from 'lucide-react';
 import { checkoutSchema } from '../../schemas/orderSchema';
 import { useBasket } from '../../context/BasketContext';
@@ -11,31 +9,47 @@ export default function CheckoutModal({ onClose, onSuccess }) {
   const { basket, subtotal, clearBasket } = useBasket();
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [orderConfirmation, setOrderConfirmation] = useState(null);
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(checkoutSchema),
-    defaultValues: {
-      fullName: '',
-      phone: '',
-      orderType: 'delivery',
-      deliveryAddress: '',
-      notes: '',
-    },
+  const [formData, setFormData] = useState({
+    fullName: '',
+    phone: '',
+    orderType: 'delivery',
+    deliveryAddress: '',
+    notes: '',
   });
 
-  const orderType = watch('orderType');
-  const deliveryFee = orderType === 'delivery' ? 1000 : 0;
+  const deliveryFee = formData.orderType === 'delivery' ? 1000 : 0;
   const grandTotal = subtotal + deliveryFee;
 
-  const onSubmit = async (formData) => {
-    setSubmitting(true);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setServerError('');
+    setFieldErrors({});
+
+    // Zod validation
+    const validation = checkoutSchema.safeParse(formData);
+    if (!validation.success) {
+      const errors = {};
+      validation.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0]] = err.message;
+        }
+      });
+      setFieldErrors(errors);
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
       const result = await orderService.submitCustomerOrder({
@@ -60,10 +74,8 @@ export default function CheckoutModal({ onClose, onSuccess }) {
         total: result.total || grandTotal,
       });
 
-      // Clear shopping basket
       clearBasket();
 
-      // Show confirmation dialog before triggering WhatsApp
       setOrderConfirmation({
         orderNumber: result.order_number,
         whatsappUrl,
@@ -156,7 +168,7 @@ export default function CheckoutModal({ onClose, onSuccess }) {
             </div>
           ) : (
             /* Checkout Form View */
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {serverError && (
                 <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -171,12 +183,14 @@ export default function CheckoutModal({ onClose, onSuccess }) {
                 </label>
                 <input
                   type="text"
-                  {...register('fullName')}
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
                   placeholder="e.g. Fatima Mohammed"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-forest-800"
                 />
-                {errors.fullName && (
-                  <p className="text-[11px] text-red-500">{errors.fullName.message}</p>
+                {fieldErrors.fullName && (
+                  <p className="text-[11px] text-red-500">{fieldErrors.fullName}</p>
                 )}
               </div>
 
@@ -187,12 +201,14 @@ export default function CheckoutModal({ onClose, onSuccess }) {
                 </label>
                 <input
                   type="tel"
-                  {...register('phone')}
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
                   placeholder="e.g. 09068202567"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-forest-800"
                 />
-                {errors.phone && (
-                  <p className="text-[11px] text-red-500">{errors.phone.message}</p>
+                {fieldErrors.phone && (
+                  <p className="text-[11px] text-red-500">{fieldErrors.phone}</p>
                 )}
               </div>
 
@@ -202,15 +218,17 @@ export default function CheckoutModal({ onClose, onSuccess }) {
                 <div className="grid grid-cols-2 gap-3">
                   <label
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
-                      orderType === 'delivery'
+                      formData.orderType === 'delivery'
                         ? 'border-forest-800 bg-forest-50/60 text-forest-900 font-bold'
                         : 'border-stone-200 text-stone-600 hover:bg-stone-50'
                     }`}
                   >
                     <input
                       type="radio"
+                      name="orderType"
                       value="delivery"
-                      {...register('orderType')}
+                      checked={formData.orderType === 'delivery'}
+                      onChange={handleChange}
                       className="sr-only"
                     />
                     <span className="text-xs">🚗 Delivery (+₦1,000)</span>
@@ -218,15 +236,17 @@ export default function CheckoutModal({ onClose, onSuccess }) {
 
                   <label
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
-                      orderType === 'pickup'
+                      formData.orderType === 'pickup'
                         ? 'border-forest-800 bg-forest-50/60 text-forest-900 font-bold'
                         : 'border-stone-200 text-stone-600 hover:bg-stone-50'
                     }`}
                   >
                     <input
                       type="radio"
+                      name="orderType"
                       value="pickup"
-                      {...register('orderType')}
+                      checked={formData.orderType === 'pickup'}
+                      onChange={handleChange}
                       className="sr-only"
                     />
                     <span className="text-xs">🛍️ Pickup (Free)</span>
@@ -235,19 +255,21 @@ export default function CheckoutModal({ onClose, onSuccess }) {
               </div>
 
               {/* Delivery Address (only if delivery) */}
-              {orderType === 'delivery' && (
+              {formData.orderType === 'delivery' && (
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-stone-700">
                     Delivery Address in Dutse <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     rows={2}
-                    {...register('deliveryAddress')}
+                    name="deliveryAddress"
+                    value={formData.deliveryAddress}
+                    onChange={handleChange}
                     placeholder="House number, street name, landmark in Dutse..."
                     className="w-full px-3.5 py-2 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-forest-800"
                   />
-                  {errors.deliveryAddress && (
-                    <p className="text-[11px] text-red-500">{errors.deliveryAddress.message}</p>
+                  {fieldErrors.deliveryAddress && (
+                    <p className="text-[11px] text-red-500">{fieldErrors.deliveryAddress}</p>
                   )}
                 </div>
               )}
@@ -259,7 +281,9 @@ export default function CheckoutModal({ onClose, onSuccess }) {
                 </label>
                 <input
                   type="text"
-                  {...register('notes')}
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleChange}
                   placeholder="e.g. Extra spicy, separate sauce, etc."
                   className="w-full px-3.5 py-2 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-forest-800"
                 />
@@ -285,7 +309,7 @@ export default function CheckoutModal({ onClose, onSuccess }) {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3.5 rounded-full bg-forest-800 hover:bg-forest-700 text-gold-400 font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-full bg-forest-800 hover:bg-forest-700 text-gold-400 font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {submitting ? (
                   <>
