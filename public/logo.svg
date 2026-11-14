@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <radialGradient id="goldSheen" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#faebd0"/>
+      <stop offset="50%" stop-color="#DDB956"/>
+      <stop offset="100%" stop-color="#a78028"/>
+    </radialGradient>
+  </defs>
+  <!-- Outer deep forest circle -->
+  <circle cx="50" cy="50" r="48" fill="#194633" stroke="#DDB956" stroke-width="2.5" />
+  <!-- Inner delicate ring -->
+  <circle cx="50" cy="50" r="43" fill="none" stroke="#DDB956" stroke-width="0.75" stroke-dasharray="3,2" opacity="0.6"/>
+  <!-- NF Monogram in Serif font -->
+  <text x="50" y="58" font-family="'Playfair Display', Georgia, serif" font-size="34" font-weight="700" fill="url(#goldSheen)" text-anchor="middle" letter-spacing="-1">NF</text>
+</svg>
