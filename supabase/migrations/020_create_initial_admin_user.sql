@@ -1,15 +1,27 @@
--- Migration 020: Create Initial Super Admin Staff Account
--- Purpose: Insert default Super Admin into Supabase auth.users & public.profiles
+-- Migration 020: Create or Sync Initial Super Admin Staff Account
+-- Purpose: Safely link or create admin@northernflavors.ng in auth.users & public.profiles
 -- Email: admin@northernflavors.ng
 -- Password: admin123
 
 DO $$
 DECLARE
-  v_user_id UUID := '00000000-0000-0000-0000-000000000001';
+  v_user_id UUID;
   v_encrypted_pw TEXT := crypt('admin123', gen_salt('bf'));
 BEGIN
-  -- Insert user into auth.users if not already registered
-  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'admin@northernflavors.ng') THEN
+  -- 1. Check if user already exists in auth.users
+  SELECT id INTO v_user_id FROM auth.users WHERE email = 'admin@northernflavors.ng';
+
+  IF v_user_id IS NOT NULL THEN
+    -- User already exists: update password to admin123 and confirm email
+    UPDATE auth.users
+    SET encrypted_password = v_encrypted_pw,
+        email_confirmed_at = COALESCE(email_confirmed_at, now()),
+        updated_at = now()
+    WHERE id = v_user_id;
+  ELSE
+    -- User does not exist: generate a new UUID and insert
+    v_user_id := gen_random_uuid();
+
     INSERT INTO auth.users (
       instance_id,
       id,
@@ -37,7 +49,6 @@ BEGIN
       now()
     );
 
-    -- Insert identity record
     INSERT INTO auth.identities (
       id,
       user_id,
@@ -58,7 +69,7 @@ BEGIN
     );
   END IF;
 
-  -- Ensure matching profile exists in public.profiles with super_admin role
+  -- 2. Upsert matching profile using the actual v_user_id from auth.users
   INSERT INTO public.profiles (id, full_name, phone, role, is_active)
   VALUES (
     v_user_id,
@@ -68,5 +79,7 @@ BEGIN
     true
   )
   ON CONFLICT (id) DO UPDATE
-  SET role = 'super_admin', is_active = true, full_name = 'Mallam Aminu Kano (Super Admin)';
+  SET role = 'super_admin',
+      is_active = true,
+      full_name = 'Mallam Aminu Kano (Super Admin)';
 END $$;
