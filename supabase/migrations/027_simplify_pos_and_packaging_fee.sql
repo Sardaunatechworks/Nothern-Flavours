@@ -11,12 +11,23 @@ ADD COLUMN IF NOT EXISTS takeaway_packaging_fee NUMERIC(12,2) NOT NULL DEFAULT 5
 UPDATE public.restaurant_settings
 SET takeaway_packaging_enabled = TRUE,
     takeaway_packaging_model = 'order',
-    takeaway_packaging_fee = 500.00
+    takeaway_packaging_fee = 200.00
 WHERE id = '00000000-0000-0000-0000-000000000001';
 
--- 2. Extend orders & pos_transactions for packaging fee and order types
+-- 2. Extend orders & pos_transactions for packaging fee, order types, and total_amount synchronization
 ALTER TABLE public.orders
-ADD COLUMN IF NOT EXISTS packaging_fee NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (packaging_fee >= 0);
+ADD COLUMN IF NOT EXISTS packaging_fee NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (packaging_fee >= 0),
+ADD COLUMN IF NOT EXISTS total_amount NUMERIC(12,2);
+
+-- Synchronize total and total_amount for maximum backward and forward compatibility
+UPDATE public.orders SET total_amount = total WHERE total_amount IS NULL AND total IS NOT NULL;
+UPDATE public.orders SET total = total_amount WHERE total IS NULL AND total_amount IS NOT NULL;
+
+-- Update orders order_type check constraint to support dine_in and takeaway alongside online delivery & pickup
+ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_order_type_check;
+ALTER TABLE public.orders ADD CONSTRAINT orders_order_type_check CHECK (
+    order_type IN ('delivery', 'pickup', 'dine_in', 'takeaway')
+);
 
 ALTER TABLE public.pos_transactions
 ADD COLUMN IF NOT EXISTS packaging_fee NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (packaging_fee >= 0),
@@ -253,6 +264,7 @@ BEGIN
         packaging_fee,
         delivery_fee,
         discount_amount,
+        total,
         total_amount,
         amount_paid,
         order_source,
@@ -271,6 +283,7 @@ BEGIN
         v_packaging_fee,
         v_delivery_fee,
         COALESCE(p_discount_amount, 0),
+        v_total,
         v_total,
         v_total_paid,
         'pos',
@@ -435,3 +448,4 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.complete_pos_sale(JSONB, JSONB, JSONB, NUMERIC, NUMERIC, TEXT, UUID, TEXT, NUMERIC, NUMERIC) TO authenticated;
+

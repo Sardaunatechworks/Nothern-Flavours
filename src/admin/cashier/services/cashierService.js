@@ -511,7 +511,7 @@ export const cashierService = {
         .select(`
           *,
           customer:customers(id, full_name, phone),
-          items:order_items(id, product_name, quantity, unit_price, line_total),
+          order_items(*),
           payments:payments(*)
         `)
         .order('created_at', { ascending: false })
@@ -529,7 +529,14 @@ export const cashierService = {
       }
 
       const { data, error } = await query;
-      if (!error && data) return data;
+      if (!error && data) {
+        return data.map((o) => ({
+          ...o,
+          total_amount: o.total_amount ?? o.total ?? 0,
+          total: o.total ?? o.total_amount ?? 0,
+          items: o.order_items || o.items || [],
+        }));
+      }
     } catch (err) {
       console.warn('Error fetching online orders for cashier:', err);
     }
@@ -548,8 +555,7 @@ export const cashierService = {
           .select(`
             *,
             cashier:profiles!cashier_id(id, full_name),
-            order:orders(id, order_number, status, payment_status, order_type, packaging_fee, delivery_fee, items:order_items(*)),
-            shift:cashier_shifts(id, shift_number)
+            order:orders(id, order_number, status, payment_status, total, created_at, order_items(*))
           `)
           .order('completed_at', { ascending: false })
           .limit(limit);
@@ -559,7 +565,47 @@ export const cashierService = {
         }
 
         const { data, error } = await query;
-        if (!error && data && data.length > 0) return data;
+        if (!error && data && data.length > 0) {
+          return data.map((tx) => {
+            const ord = tx.order || {};
+            const items = ord.order_items || ord.items || [];
+            return {
+              ...tx,
+              order_type: tx.order_type || ord.order_type || 'dine_in',
+              packaging_fee: tx.packaging_fee || ord.packaging_fee || 0,
+              delivery_fee: tx.delivery_fee || ord.delivery_fee || 0,
+              order: {
+                ...ord,
+                total_amount: ord.total_amount ?? ord.total ?? tx.total ?? 0,
+                order_type: tx.order_type || ord.order_type || 'dine_in',
+                packaging_fee: tx.packaging_fee || ord.packaging_fee || 0,
+                delivery_fee: tx.delivery_fee || ord.delivery_fee || 0,
+                items,
+              },
+            };
+          });
+        }
+
+        if (error) {
+          console.warn('Remote POS transactions fetch failed, attempting basic select:', error.message);
+          const { data: basicData, error: basicErr } = await supabase
+            .from('pos_transactions')
+            .select('*')
+            .order('completed_at', { ascending: false })
+            .limit(limit);
+
+          if (!basicErr && basicData && basicData.length > 0) {
+            return basicData.map((tx) => ({
+              ...tx,
+              cashier: { full_name: 'Cashier Staff' },
+              order: {
+                order_number: tx.transaction_number,
+                total_amount: tx.total,
+                items: [],
+              },
+            }));
+          }
+        }
       } catch (err) {
         console.warn('Error fetching remote POS transactions:', err);
       }
@@ -579,8 +625,8 @@ export const cashierService = {
           .select(`
             *,
             cashier:profiles!cashier_id(id, full_name),
-            order:orders(id, order_number, total_amount, payment_status, order_type, packaging_fee, delivery_fee, created_at, customer:customers(full_name, phone), items:order_items(*)),
-            payment:payments(id, payment_method, amount, amount_tendered, change_due, provider, transaction_reference)
+            order:orders(id, order_number, total, payment_status, created_at, customer:customers(full_name, phone), order_items(*)),
+            payment:payments(id, payment_method, amount)
           `)
           .order('issued_at', { ascending: false })
           .limit(limit);
@@ -590,7 +636,48 @@ export const cashierService = {
         }
 
         const { data, error } = await query;
-        if (!error && data && data.length > 0) return data;
+        if (!error && data && data.length > 0) {
+          return data.map((rc) => {
+            const ord = rc.order || {};
+            const items = ord.order_items || ord.items || [];
+            return {
+              ...rc,
+              order: {
+                ...ord,
+                total_amount: ord.total_amount ?? ord.total ?? rc.metadata?.total_amount ?? 0,
+                total: ord.total ?? ord.total_amount ?? 0,
+                order_type: ord.order_type ?? rc.metadata?.order_type ?? 'dine_in',
+                packaging_fee: ord.packaging_fee ?? rc.metadata?.packaging_fee ?? 0,
+                delivery_fee: ord.delivery_fee ?? rc.metadata?.delivery_fee ?? 0,
+                items,
+              },
+            };
+          });
+        }
+
+        if (error) {
+          console.warn('Remote receipts fetch failed, attempting fallback query:', error.message);
+          const { data: basicData, error: basicErr } = await supabase
+            .from('receipts')
+            .select('*')
+            .order('issued_at', { ascending: false })
+            .limit(limit);
+
+          if (!basicErr && basicData && basicData.length > 0) {
+            return basicData.map((rc) => ({
+              ...rc,
+              cashier: { full_name: rc.metadata?.cashier_name || 'Cashier Staff' },
+              order: {
+                order_number: rc.metadata?.order_number || 'N/A',
+                total_amount: rc.metadata?.total_amount || 0,
+                order_type: rc.metadata?.order_type || 'dine_in',
+                packaging_fee: rc.metadata?.packaging_fee || 0,
+                delivery_fee: rc.metadata?.delivery_fee || 0,
+                items: [],
+              },
+            }));
+          }
+        }
       } catch (err) {
         console.warn('Error fetching remote receipts:', err);
       }
