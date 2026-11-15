@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   ExternalLink,
+  Store,
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -43,6 +44,12 @@ export default function AdminLayout() {
       path: '/admin/orders',
       icon: ShoppingBag,
       roles: ['super_admin', 'manager', 'order_manager', 'staff'],
+    },
+    {
+      label: 'Cashier & POS',
+      path: '/admin/cashier',
+      icon: Store,
+      roles: ['super_admin', 'manager', 'cashier'],
     },
     {
       label: 'Products',

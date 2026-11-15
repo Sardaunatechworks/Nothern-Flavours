@@ -21,8 +21,12 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate(from, { replace: true });
+      const authed = await login(email, password);
+      if (from === '/admin' && authed?.profile?.role === 'cashier') {
+        navigate('/admin/cashier', { replace: true });
+      } else {
+        navigate(from, { replace: true });
+      }
     } catch (err) {
       setError(err.message || 'Login failed. Please verify credentials.');
     } finally {
