@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowLeft, Loader2, Store, Shield } from 'lucide-react';
 
 export default function Login() {
-  const [email, setEmail] = useState('admin@northernflavors.ng');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('cashier@northernflavors.ng');
+  const [password, setPassword] = useState('cashier123');
+  const [selectedRole, setSelectedRole] = useState('cashier'); // 'admin' | 'cashier'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -13,7 +14,19 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/admin';
+  const from = location.state?.from?.pathname || (selectedRole === 'cashier' ? '/admin/cashier' : '/admin');
+
+  const handleRoleSelect = (roleKey) => {
+    setSelectedRole(roleKey);
+    if (roleKey === 'cashier') {
+      setEmail('cashier@northernflavors.ng');
+      setPassword('cashier123');
+    } else {
+      setEmail('admin@northernflavors.ng');
+      setPassword('admin123');
+    }
+    setError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,10 +35,12 @@ export default function Login() {
 
     try {
       const authed = await login(email, password);
-      if (from === '/admin' && authed?.profile?.role === 'cashier') {
+      const userRole = authed?.profile?.role;
+
+      if (userRole === 'cashier') {
         navigate('/admin/cashier', { replace: true });
       } else {
-        navigate(from, { replace: true });
+        navigate(from === '/admin/cashier' ? '/admin' : from, { replace: true });
       }
     } catch (err) {
       setError(err.message || 'Login failed. Please verify credentials.');
@@ -51,10 +66,38 @@ export default function Login() {
           <div className="w-14 h-14 rounded-full bg-forest-800 border-2 border-gold-500 flex items-center justify-center mx-auto shadow-md">
             <span className="font-serif text-gold-400 text-2xl font-bold">NF</span>
           </div>
-          <h2 className="font-serif text-2xl font-bold text-forest-950">Staff Portal</h2>
+          <h2 className="font-serif text-2xl font-bold text-forest-950">Staff & Cashier Portal</h2>
           <p className="text-xs text-stone-500">
-            Sign in to access restaurant ordering & inventory management
+            Sign in to access restaurant ordering, POS register & management
           </p>
+        </div>
+
+        {/* Quick Role Switcher Buttons */}
+        <div className="grid grid-cols-2 gap-2 p-1.5 bg-stone-100 rounded-2xl">
+          <button
+            type="button"
+            onClick={() => handleRoleSelect('cashier')}
+            className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+              selectedRole === 'cashier'
+                ? 'bg-forest-900 text-gold-300 shadow-sm'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Store className="w-3.5 h-3.5" />
+            <span>Cashier (POS)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleRoleSelect('admin')}
+            className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+              selectedRole === 'admin'
+                ? 'bg-forest-900 text-gold-300 shadow-sm'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span>Super Admin</span>
+          </button>
         </div>
 
         {error && (
@@ -106,21 +149,31 @@ export default function Login() {
                 <span>Signing In...</span>
               </>
             ) : (
-              <span>Sign In to Dashboard</span>
+              <span>
+                {selectedRole === 'cashier'
+                  ? 'Sign In to Cashier Register'
+                  : 'Sign In to Admin Dashboard'}
+              </span>
             )}
           </button>
         </form>
 
-        <div className="p-3.5 rounded-xl bg-forest-50 border border-forest-100 text-[11px] text-forest-900 space-y-1">
-          <p className="font-bold">Staff Access Note:</p>
-          <p>
-            Default evaluation credentials: <br />
-            Email: <span className="font-mono font-semibold">admin@northernflavors.ng</span> <br />
-            Password: <span className="font-mono font-semibold">admin123</span>
-          </p>
+        <div className="p-3.5 rounded-xl bg-forest-50 border border-forest-100 text-[11px] text-forest-900 space-y-1.5">
+          <p className="font-bold">Staff Access Credentials:</p>
+          <div className="space-y-1 text-stone-700">
+            <p>
+              • <strong className="text-forest-900">Cashier POS:</strong>{' '}
+              <span className="font-mono">cashier@northernflavors.ng</span> /{' '}
+              <span className="font-mono">cashier123</span>
+            </p>
+            <p>
+              • <strong className="text-forest-900">Super Admin:</strong>{' '}
+              <span className="font-mono">admin@northernflavors.ng</span> /{' '}
+              <span className="font-mono">admin123</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

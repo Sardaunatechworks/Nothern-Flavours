@@ -22,3 +22,4 @@ CREATE INDEX IF NOT EXISTS idx_receipts_number ON public.receipts(receipt_number
 CREATE INDEX IF NOT EXISTS idx_receipts_issued_at ON public.receipts(issued_at DESC);
 
 COMMENT ON TABLE public.receipts IS 'Audit records of sales receipts printed or emailed with reprint tracking';
+

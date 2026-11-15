@@ -47,3 +47,4 @@ CREATE INDEX IF NOT EXISTS idx_payment_webhooks_status ON public.payment_webhook
 
 COMMENT ON TABLE public.pos_transactions IS 'Detailed audit records for walk-in POS counter orders and transactions';
 COMMENT ON TABLE public.payment_webhook_events IS 'Inbound payment provider webhook event logs with idempotency tracking';
+

@@ -49,9 +49,26 @@ export const authService = {
       return { user: evaluationUser, error: null };
     }
 
+    // 3. Evaluation fallback for cashier@northernflavors.ng / cashier123
+    if (email === 'cashier@northernflavors.ng' && password === 'cashier123') {
+      const cashierUser = {
+        id: '00000000-0000-0000-0000-000000000002',
+        email: 'cashier@northernflavors.ng',
+        profile: {
+          id: '00000000-0000-0000-0000-000000000002',
+          full_name: 'Fatima Bello (Head Cashier)',
+          role: 'cashier',
+          phone: '09068202567',
+          is_active: true,
+        },
+      };
+      localStorage.setItem('nf_demo_auth', JSON.stringify(cashierUser));
+      return { user: cashierUser, error: null };
+    }
+
     return {
       user: null,
-      error: new Error('Invalid login credentials. Use admin@northernflavors.ng / admin123 or create a user in Supabase Auth.'),
+      error: new Error('Invalid login credentials. Use admin@northernflavors.ng / admin123 or cashier@northernflavors.ng / cashier123.'),
     };
   },
 

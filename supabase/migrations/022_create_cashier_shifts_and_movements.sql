@@ -54,3 +54,4 @@ FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 COMMENT ON TABLE public.cashier_shifts IS 'Cashier register work sessions and cash drawer reconciliations';
 COMMENT ON TABLE public.cash_movements IS 'Audit ledger for all cash drawer in/out movements and cash sales';
+

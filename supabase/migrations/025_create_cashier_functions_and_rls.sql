@@ -1065,3 +1065,4 @@ GRANT EXECUTE ON FUNCTION public.complete_pos_sale(JSONB, JSONB, JSONB, NUMERIC,
 GRANT EXECUTE ON FUNCTION public.record_order_payment(UUID, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reprint_receipt(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_cashier_dashboard_stats(UUID) TO authenticated;
+

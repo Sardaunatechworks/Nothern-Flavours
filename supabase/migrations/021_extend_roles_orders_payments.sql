@@ -40,3 +40,4 @@ CREATE INDEX IF NOT EXISTS idx_payments_shift_id ON public.payments(shift_id);
 CREATE INDEX IF NOT EXISTS idx_payments_transaction_ref ON public.payments(transaction_reference);
 CREATE INDEX IF NOT EXISTS idx_orders_order_source ON public.orders(order_source);
 CREATE INDEX IF NOT EXISTS idx_orders_created_by ON public.orders(created_by);
+
