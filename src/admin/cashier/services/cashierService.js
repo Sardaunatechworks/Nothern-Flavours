@@ -7,24 +7,46 @@ const LOCAL_RECEIPTS_KEY = 'nf_receipts';
 
 export const cashierService = {
   /**
+   * Check if current client has an authenticated Supabase user session
+   */
+  async hasActiveSession() {
+    if (!supabase) return false;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      return Boolean(session && session.user);
+    } catch {
+      return false;
+    }
+  },
+
+  /**
    * Get current cashier dashboard KPIs and active shift
    */
   async getDashboardStats(shiftId = null) {
-    if (supabase) {
+    const hasSession = await this.hasActiveSession();
+
+    if (hasSession && supabase) {
       try {
-        const { data, error } = await supabase.rpc('get_cashier_dashboard_stats', {
-          p_shift_id: shiftId || null,
-        });
+        const { data, error } = await supabase.rpc(
+          'get_cashier_dashboard_stats',
+          shiftId ? { p_shift_id: shiftId } : {}
+        );
 
         if (!error && data) {
           return data;
         }
       } catch (err) {
-        console.warn('RPC get_cashier_dashboard_stats unavailable, using local stats:', err);
+        console.warn('RPC get_cashier_dashboard_stats failed, using local stats:', err);
       }
     }
 
-    // Fallback: Compute from local transactions and active shift
+    return this.getLocalDashboardStats();
+  },
+
+  /**
+   * Compute stats from local transactions and active shift
+   */
+  getLocalDashboardStats() {
     const localShift = this.getLocalActiveShift();
     const localTxs = this.getLocalTransactions();
 
@@ -66,7 +88,9 @@ export const cashierService = {
    * Retrieve active open shift for the current cashier
    */
   async getActiveShift() {
-    if (supabase) {
+    const hasSession = await this.hasActiveSession();
+
+    if (hasSession && supabase) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -92,7 +116,9 @@ export const cashierService = {
    * Open a new cashier shift with starting float
    */
   async openShift({ openingCash = 0, notes = '' }) {
-    if (supabase) {
+    const hasSession = await this.hasActiveSession();
+
+    if (hasSession && supabase) {
       try {
         const { data, error } = await supabase.rpc('open_cashier_shift', {
           p_opening_cash: Number(openingCash) || 0,
@@ -129,7 +155,9 @@ export const cashierService = {
    * Record manual cash in / cash out drawer movement
    */
   async recordCashMovement({ shiftId, movementType, amount, reason, reference = null }) {
-    if (supabase) {
+    const hasSession = await this.hasActiveSession();
+
+    if (hasSession && supabase) {
       try {
         const { data, error } = await supabase.rpc('record_cash_movement', {
           p_shift_id: shiftId,
@@ -162,7 +190,9 @@ export const cashierService = {
    * Close an open shift and reconcile actual cash count
    */
   async closeShift({ shiftId, closingCash, notes = '' }) {
-    if (supabase) {
+    const hasSession = await this.hasActiveSession();
+
+    if (hasSession && supabase) {
       try {
         const { data, error } = await supabase.rpc('close_cashier_shift', {
           p_shift_id: shiftId,
@@ -298,7 +328,9 @@ export const cashierService = {
     notes = null,
     shiftId = null,
   }) {
-    if (supabase) {
+    const hasSession = await this.hasActiveSession();
+
+    if (hasSession && supabase) {
       try {
         const { data, error } = await supabase.rpc('complete_pos_sale', {
           p_items: items,
@@ -407,7 +439,9 @@ export const cashierService = {
     notes = null,
     shiftId = null,
   }) {
-    if (supabase) {
+    const hasSession = await this.hasActiveSession();
+
+    if (hasSession && supabase) {
       try {
         const { data, error } = await supabase.rpc('record_order_payment', {
           p_order_id: orderId,
@@ -546,7 +580,9 @@ export const cashierService = {
    * Increment reprint counter and track audit
    */
   async reprintReceipt(receiptId) {
-    if (supabase) {
+    const hasSession = await this.hasActiveSession();
+
+    if (hasSession && supabase) {
       try {
         const { data, error } = await supabase.rpc('reprint_receipt', {
           p_receipt_id: receiptId,

@@ -2708,7 +2708,16 @@ DECLARE
     v_active_shift RECORD;
 BEGIN
     IF NOT private.has_role(ARRAY['super_admin', 'manager', 'cashier']) THEN
-        RAISE EXCEPTION 'Access denied.';
+        RETURN jsonb_build_object(
+            'today_total', 0,
+            'today_count', 0,
+            'cash_total', 0,
+            'transfer_total', 0,
+            'pos_total', 0,
+            'online_total', 0,
+            'pending_orders_count', 0,
+            'active_shift', NULL
+        );
     END IF;
 
     -- Query today's payments
@@ -2827,7 +2836,7 @@ GRANT EXECUTE ON FUNCTION public.close_cashier_shift(UUID, NUMERIC, TEXT) TO aut
 GRANT EXECUTE ON FUNCTION public.complete_pos_sale(JSONB, JSONB, JSONB, NUMERIC, NUMERIC, TEXT, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.record_order_payment(UUID, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reprint_receipt(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_cashier_dashboard_stats(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_cashier_dashboard_stats(UUID) TO anon, authenticated, service_role;
 
 -- Migration 026: Create or Sync Cashier Staff Account
 -- Purpose: Safely link or create cashier@northernflavors.ng in auth.users & public.profiles
