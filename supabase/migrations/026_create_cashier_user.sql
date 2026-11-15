@@ -48,9 +48,13 @@ BEGIN
       now(),
       now()
     );
+  END IF;
 
+  -- 2. Upsert identity record (include provider_id to satisfy Supabase NOT NULL constraint)
+  IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = v_user_id) THEN
     INSERT INTO auth.identities (
       id,
+      provider_id,
       user_id,
       identity_data,
       provider,
@@ -59,7 +63,8 @@ BEGIN
       updated_at
     )
     VALUES (
-      v_user_id,
+      gen_random_uuid(),
+      v_user_id::text,
       v_user_id,
       format('{"sub":"%s","email":"%s"}', v_user_id::text, 'cashier@northernflavors.ng')::jsonb,
       'email',
@@ -69,7 +74,7 @@ BEGIN
     );
   END IF;
 
-  -- 2. Upsert matching profile using the actual v_user_id from auth.users
+  -- 3. Upsert matching profile using the actual v_user_id from auth.users
   INSERT INTO public.profiles (id, full_name, phone, role, is_active)
   VALUES (
     v_user_id,
