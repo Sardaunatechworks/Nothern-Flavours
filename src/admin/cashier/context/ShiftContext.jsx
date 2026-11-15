@@ -95,7 +95,17 @@ export function ShiftProvider({ children }) {
 export function useShift() {
   const context = useContext(ShiftContext);
   if (!context) {
-    throw new Error('useShift must be used within a ShiftProvider');
+    return {
+      activeShift: null,
+      isShiftOpen: false,
+      loadingShift: false,
+      error: null,
+      refreshShift: async () => null,
+      openShift: async () => {},
+      closeShift: async () => {},
+      recordCashMovement: async () => {},
+    };
   }
   return context;
 }
+

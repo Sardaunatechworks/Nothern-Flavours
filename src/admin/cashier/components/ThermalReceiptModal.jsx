@@ -242,3 +242,4 @@ Method: ${payment.payment_method?.toUpperCase() || 'PAID'}
     </div>
   );
 }
+

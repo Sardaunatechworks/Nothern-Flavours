@@ -403,3 +403,4 @@ export function CashMovementModal({ isOpen, onClose, onSuccess }) {
     </div>
   );
 }
+

@@ -774,3 +774,4 @@ export default function PointOfSale() {
     </div>
   );
 }
+
