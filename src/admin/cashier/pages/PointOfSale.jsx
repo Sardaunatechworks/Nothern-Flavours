@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { cashierService } from '../services/cashierService';
-import { useShift } from '../context/ShiftContext';
+import { menuService } from '../../../services/menuService';
 import { supabase } from '../../../services/supabase';
+import { posCalculations } from '../utils/posCalculations';
 import {
   Search,
   Plus,
@@ -17,15 +18,13 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Printer,
-  Sparkles,
+  Utensils,
+  Package,
+  Truck,
 } from 'lucide-react';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
-import { OpenShiftModal } from '../components/ShiftModals';
 
 export default function PointOfSale() {
-  const { activeShift, isShiftOpen, refreshShift } = useShift();
-
   // Catalog State
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -33,8 +32,12 @@ export default function PointOfSale() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // Cart State
+  // Settings State (for takeaway packaging & delivery fees)
+  const [restaurantSettings, setRestaurantSettings] = useState({});
+
+  // Order & Cart State
   const [cart, setCart] = useState([]);
+  const [orderType, setOrderType] = useState('dine_in'); // 'dine_in' | 'takeaway' | 'delivery'
   const [discountAmount, setDiscountAmount] = useState(0);
   const [notes, setNotes] = useState('');
 
@@ -58,27 +61,34 @@ export default function PointOfSale() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [completedReceipt, setCompletedReceipt] = useState(null);
-  const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
 
-  // Fetch initial catalog & categories
+  // Initial Load: Products, Categories & Packaging Settings
   useEffect(() => {
-    async function initCatalog() {
+    async function initPOS() {
       try {
         setLoadingProducts(true);
-        const [prodData, { data: catData }] = await Promise.all([
+        const [prodData, settingsData, { data: catData }] = await Promise.all([
           cashierService.getPOSProducts(),
-          supabase ? supabase.from('categories').select('*').eq('is_active', true).order('sort_order', { ascending: true }) : { data: [] },
+          menuService.getRestaurantSettings(),
+          supabase
+            ? supabase
+                .from('categories')
+                .select('*')
+                .eq('is_active', true)
+                .order('sort_order', { ascending: true })
+            : { data: [] },
         ]);
         setProducts(prodData || []);
+        setRestaurantSettings(settingsData || {});
         setCategories(catData || []);
       } catch (err) {
-        console.error('Failed to load POS catalog:', err);
+        console.error('Failed to initialize POS:', err);
         setError('Failed to load menu products');
       } finally {
         setLoadingProducts(false);
       }
     }
-    initCatalog();
+    initPOS();
   }, []);
 
   // Filtered Products
@@ -94,28 +104,44 @@ export default function PointOfSale() {
     });
   }, [products, selectedCategory, searchTerm]);
 
-  // Cart Calculations
+  // Calculations via Central Utility
   const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return posCalculations.calculateSubtotal(cart);
   }, [cart]);
 
-  const total = useMemo(() => {
-    const val = subtotal - (Number(discountAmount) || 0);
-    return val > 0 ? val : 0;
-  }, [subtotal, discountAmount]);
+  const packagingFee = useMemo(() => {
+    return posCalculations.calculatePackagingFee(orderType, cart, restaurantSettings);
+  }, [orderType, cart, restaurantSettings]);
 
-  // Default cash tendered to total if empty
-  useEffect(() => {
-    if (paymentMethod === 'cash' && (!amountTendered || Number(amountTendered) < total)) {
-      setAmountTendered(total.toString());
+  const deliveryFee = useMemo(() => {
+    if (orderType === 'delivery') {
+      return Number(restaurantSettings.default_delivery_fee || 1000);
     }
-  }, [total, paymentMethod]);
+    return 0;
+  }, [orderType, restaurantSettings]);
+
+  const grandTotal = useMemo(() => {
+    return posCalculations.calculateGrandTotal({
+      subtotal,
+      packagingFee,
+      deliveryFee,
+      discount: discountAmount,
+    });
+  }, [subtotal, packagingFee, deliveryFee, discountAmount]);
+
+  // Auto-fill cash tendered with grand total if empty or lower
+  useEffect(() => {
+    if (paymentMethod === 'cash') {
+      const current = parseFloat(amountTendered) || 0;
+      if (current < grandTotal) {
+        setAmountTendered(grandTotal > 0 ? grandTotal.toString() : '');
+      }
+    }
+  }, [grandTotal, paymentMethod]);
 
   const changeDue = useMemo(() => {
-    if (paymentMethod !== 'cash') return 0;
-    const tendered = parseFloat(amountTendered) || 0;
-    return tendered > total ? tendered - total : 0;
-  }, [amountTendered, total, paymentMethod]);
+    return posCalculations.calculateChangeDue(amountTendered, grandTotal);
+  }, [amountTendered, grandTotal]);
 
   // Cart Actions
   const addToCart = (product) => {
@@ -126,7 +152,7 @@ export default function PointOfSale() {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
         if (product.track_stock && existing.quantity >= product.stock_quantity) {
-          alert(`Cannot add more than ${product.stock_quantity} available units`);
+          alert(`Cannot add more: only ${product.stock_quantity} available in stock.`);
           return prev;
         }
         return prev.map((item) =>
@@ -145,7 +171,7 @@ export default function PointOfSale() {
             const nextQty = item.quantity + delta;
             if (nextQty <= 0) return null;
             if (item.track_stock && nextQty > item.stock_quantity) {
-              alert(`Only ${item.stock_quantity} available`);
+              alert(`Only ${item.stock_quantity} available in stock.`);
               return item;
             }
             return { ...item, quantity: nextQty };
@@ -160,16 +186,20 @@ export default function PointOfSale() {
     setCart((prev) => prev.filter((item) => item.id !== productId));
   };
 
-  const clearCart = () => {
+  const resetForNewSale = () => {
     setCart([]);
+    setOrderType('dine_in');
     setDiscountAmount(0);
+    setNotes('');
+    setCustomerName('Walk-in Customer');
+    setCustomerPhone('');
+    setPaymentMethod('cash');
     setAmountTendered('');
     setTransferRef('');
     setPosTerminalRef('');
     setError('');
   };
 
-  // Preset bill quick buttons
   const addQuickCash = (bill) => {
     const current = parseFloat(amountTendered) || 0;
     setAmountTendered((current + bill).toString());
@@ -177,30 +207,23 @@ export default function PointOfSale() {
 
   // Submit and Complete Walk-in Sale
   const handleCompleteSale = async () => {
-    if (cart.length === 0) return;
-    setError('');
-
-    // Shift check if accepting cash
-    const involvesCash =
-      paymentMethod === 'cash' ||
-      (paymentMethod === 'split' && splitPayments.some((p) => p.method === 'cash' && Number(p.amount) > 0));
-
-    if (involvesCash && !isShiftOpen) {
-      setShowOpenShiftModal(true);
+    if (cart.length === 0) {
+      setError('Cannot complete sale with an empty cart.');
       return;
     }
+    setError('');
 
     // Build Payments array
     let paymentsPayload = [];
     if (paymentMethod === 'cash') {
-      const tendered = parseFloat(amountTendered) || total;
-      if (tendered < total) {
-        setError(`Amount tendered (₦${tendered.toLocaleString()}) cannot be less than total (₦${total.toLocaleString()}).`);
+      const tendered = parseFloat(amountTendered) || grandTotal;
+      if (tendered < grandTotal) {
+        setError(`Amount tendered (₦${tendered.toLocaleString()}) cannot be less than total (₦${grandTotal.toLocaleString()}).`);
         return;
       }
       paymentsPayload.push({
         method: 'cash',
-        amount: total,
+        amount: grandTotal,
         amount_tendered: tendered,
         change_due: changeDue,
       });
@@ -211,23 +234,25 @@ export default function PointOfSale() {
       }
       paymentsPayload.push({
         method: 'bank_transfer',
-        amount: total,
+        amount: grandTotal,
         transaction_reference: transferRef.trim(),
       });
     } else if (paymentMethod === 'pos_terminal') {
       if (!posTerminalRef.trim()) {
-        setError('Please enter the POS terminal authorization/STAN reference.');
+        setError('Please enter the POS terminal authorization or STAN reference.');
         return;
       }
       paymentsPayload.push({
         method: 'pos_terminal',
-        amount: total,
+        amount: grandTotal,
         transaction_reference: posTerminalRef.trim(),
       });
     } else if (paymentMethod === 'split') {
-      const splitSum = splitPayments.reduce((acc, p) => acc + (parseFloat(p.amount) || 0), 0);
-      if (splitSum < total) {
-        setError(`Split payment sum (₦${splitSum.toLocaleString()}) must cover total order (₦${total.toLocaleString()}).`);
+      const coverage = posCalculations.validatePaymentCoverage(splitPayments, grandTotal);
+      if (!coverage.isFullyCovered) {
+        setError(
+          `Split payment sum (₦${coverage.totalPaid.toLocaleString()}) does not cover order total (₦${grandTotal.toLocaleString()}). Balance: ₦${coverage.remainingBalance.toLocaleString()}`
+        );
         return;
       }
       paymentsPayload = splitPayments
@@ -239,7 +264,6 @@ export default function PointOfSale() {
         }));
     }
 
-    // Build items payload
     const itemsPayload = cart.map((it) => ({
       product_id: it.id,
       quantity: it.quantity,
@@ -255,13 +279,15 @@ export default function PointOfSale() {
           name: customerName,
           phone: customerPhone,
         },
+        orderType,
+        packagingFee,
+        deliveryFee,
         discountAmount: Number(discountAmount) || 0,
         taxAmount: 0,
         notes: notes || null,
-        shiftId: activeShift?.id || null,
       });
 
-      // Construct receipt for immediate thermal preview
+      // Construct receipt for immediate thermal / A4 preview
       const receiptObj = {
         id: res.receipt_id,
         receipt_number: res.receipt_number,
@@ -269,9 +295,12 @@ export default function PointOfSale() {
         reprint_count: 0,
         order: {
           order_number: res.order_number,
-          subtotal: res.subtotal,
-          discount_amount: res.discount,
-          total_amount: res.total,
+          order_type: orderType,
+          subtotal,
+          packaging_fee: packagingFee,
+          delivery_fee: deliveryFee,
+          discount_amount: Number(discountAmount) || 0,
+          total_amount: grandTotal,
           items: cart.map((it) => ({
             id: it.id,
             product_name: it.name,
@@ -286,24 +315,27 @@ export default function PointOfSale() {
         },
         payment: {
           payment_method: paymentMethod,
-          amount: res.amount_paid,
-          amount_tendered: paymentMethod === 'cash' ? parseFloat(amountTendered) || total : null,
+          amount: grandTotal,
+          amount_tendered: paymentMethod === 'cash' ? parseFloat(amountTendered) || grandTotal : null,
           change_due: changeDue,
+          transaction_reference: transferRef || posTerminalRef || null,
         },
         cashier: {
-          full_name: 'Cashier',
+          full_name: 'Cashier Staff',
         },
         metadata: {
           customer_name: customerName,
           order_number: res.order_number,
+          order_type: orderType,
+          packaging_fee: packagingFee,
+          delivery_fee: deliveryFee,
         },
       };
 
       setCompletedReceipt(receiptObj);
-      clearCart();
-      refreshShift();
+      resetForNewSale();
     } catch (err) {
-      console.error('POS Sale error:', err);
+      console.error('POS Checkout Error:', err);
       setError(err.message || 'Failed to complete POS sale');
     } finally {
       setSubmitting(false);
@@ -312,7 +344,7 @@ export default function PointOfSale() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full items-start">
-      {/* LEFT SECTION: PRODUCT CATALOG (8 COLS) */}
+      {/* ================= LEFT PANEL: PRODUCT MENU (7 COLS) ================= */}
       <div className="lg:col-span-7 xl:col-span-8 space-y-4">
         {/* Search & Category Filter Bar */}
         <div className="bg-white p-4 rounded-3xl border border-stone-200 shadow-sm space-y-3">
@@ -322,7 +354,7 @@ export default function PointOfSale() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search food by name or SKU (e.g. Tuwo, Suya, Chapman)..."
+              placeholder="Search dishes by name or code (e.g. Tuwo, Suya, Masa, Chapman)..."
               className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-stone-200 text-xs focus:outline-none focus:ring-2 focus:ring-forest-800"
             />
           </div>
@@ -364,8 +396,8 @@ export default function PointOfSale() {
         ) : filteredProducts.length === 0 ? (
           <div className="bg-white rounded-3xl p-12 text-center text-stone-400 border border-stone-200">
             <ShoppingBag className="w-10 h-10 mx-auto mb-2 text-stone-300" />
-            <p className="text-sm font-semibold">No food products found</p>
-            <p className="text-xs text-stone-400 mt-1">Try another category or search query.</p>
+            <p className="text-sm font-semibold">No food items found</p>
+            <p className="text-xs text-stone-400 mt-1">Try another category or clear search terms.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -381,7 +413,7 @@ export default function PointOfSale() {
                   className={`group relative text-left bg-white p-3.5 rounded-2xl border transition-all flex flex-col justify-between h-44 shadow-sm hover:shadow-md ${
                     available
                       ? 'border-stone-200 hover:border-gold-500'
-                      : 'border-stone-200 opacity-60 cursor-not-allowed bg-stone-50'
+                      : 'border-stone-200 opacity-50 cursor-not-allowed bg-stone-50'
                   }`}
                 >
                   <div className="space-y-1 w-full">
@@ -427,37 +459,82 @@ export default function PointOfSale() {
         )}
       </div>
 
-      {/* RIGHT SECTION: POS CART & CHECKOUT DRAWER (4 COLS) */}
+      {/* ================= RIGHT PANEL: CART & TERMINAL (5 COLS) ================= */}
       <div className="lg:col-span-5 xl:col-span-4 bg-white rounded-3xl border border-stone-200 shadow-elevated p-5 flex flex-col space-y-4 sticky top-20">
-        {/* Cart Header */}
+        {/* Terminal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-stone-200">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-forest-900" />
-            <h3 className="font-serif font-bold text-base text-forest-950">Current Order</h3>
+            <h3 className="font-serif font-bold text-base text-forest-950">Current Sale</h3>
             <span className="px-2 py-0.5 bg-forest-100 text-forest-900 text-xs font-bold rounded-full">
-              {cart.reduce((s, i) => s + i.quantity, 0)}
+              {posCalculations.calculateTotalItemsCount(cart)}
             </span>
           </div>
 
           {cart.length > 0 && (
             <button
-              onClick={clearCart}
+              onClick={resetForNewSale}
               className="text-stone-400 hover:text-red-600 transition p-1"
-              title="Clear entire cart"
+              title="Clear cart & start new"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {/* Customer Information (Optional counter walk-in) */}
+        {/* ORDER TYPE SELECTOR (Section 4 Requirement) */}
+        <div>
+          <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wide mb-1.5">
+            Order Type
+          </label>
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-stone-100 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setOrderType('dine_in')}
+              className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                orderType === 'dine_in'
+                  ? 'bg-forest-900 text-gold-300 shadow-sm'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Utensils className="w-3.5 h-3.5" />
+              <span>Dine-in</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrderType('takeaway')}
+              className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                orderType === 'takeaway'
+                  ? 'bg-forest-900 text-gold-300 shadow-sm'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span>Takeaway</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrderType('delivery')}
+              className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                orderType === 'delivery'
+                  ? 'bg-forest-900 text-gold-300 shadow-sm'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>Delivery</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Customer Information (Optional walk-in counter) */}
         <div className="p-3 bg-stone-50 rounded-2xl border border-stone-100 space-y-2 text-xs">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-stone-700 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-stone-400" />
               Customer Details
             </span>
-            <span className="text-[10px] text-stone-400">Walk-in Counter</span>
+            <span className="text-[10px] text-stone-400">Optional</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <input
@@ -478,15 +555,15 @@ export default function PointOfSale() {
         </div>
 
         {/* Cart Items List */}
-        <div className="flex-1 overflow-y-auto max-h-[280px] divide-y divide-stone-100 pr-1">
+        <div className="flex-1 overflow-y-auto max-h-[220px] divide-y divide-stone-100 pr-1">
           {cart.length === 0 ? (
-            <div className="py-12 text-center text-stone-400 space-y-2">
+            <div className="py-10 text-center text-stone-400 space-y-2">
               <ShoppingBag className="w-8 h-8 mx-auto text-stone-300" />
-              <p className="text-xs">Cart is empty. Tap items on the left to add.</p>
+              <p className="text-xs">Cart is empty. Select items from the menu to begin.</p>
             </div>
           ) : (
             cart.map((item) => (
-              <div key={item.id} className="py-2.5 flex items-center justify-between gap-2">
+              <div key={item.id} className="py-2 flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <h5 className="font-serif font-bold text-xs text-stone-900 truncate">
                     {item.name}
@@ -530,12 +607,32 @@ export default function PointOfSale() {
           )}
         </div>
 
-        {/* Pricing Summary */}
+        {/* PRICING BREAKDOWN WITH TAKEAWAY CHARGE (Section 4 Requirement) */}
         <div className="border-t border-stone-200 pt-3 space-y-1.5 text-xs">
           <div className="flex justify-between text-stone-600">
-            <span>Subtotal:</span>
+            <span>Food Subtotal:</span>
             <span className="font-semibold">₦{subtotal.toLocaleString()}</span>
           </div>
+
+          {orderType === 'takeaway' && (
+            <div className="flex justify-between text-stone-800 font-semibold bg-amber-50/70 px-2 py-1 rounded-lg border border-amber-200">
+              <span className="flex items-center gap-1">
+                <Package className="w-3.5 h-3.5 text-amber-700" />
+                Takeaway Packaging Fee:
+              </span>
+              <span>₦{packagingFee.toLocaleString()}</span>
+            </div>
+          )}
+
+          {orderType === 'delivery' && (
+            <div className="flex justify-between text-stone-800 font-semibold bg-blue-50/70 px-2 py-1 rounded-lg border border-blue-200">
+              <span className="flex items-center gap-1">
+                <Truck className="w-3.5 h-3.5 text-blue-700" />
+                Delivery Fee:
+              </span>
+              <span>₦{deliveryFee.toLocaleString()}</span>
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <span className="text-stone-600">Discount (₦):</span>
@@ -544,7 +641,7 @@ export default function PointOfSale() {
               min="0"
               max={subtotal}
               value={discountAmount || ''}
-              onChange={(e) => setDiscountAmount(e.target.value)}
+              onChange={(e) => setDiscountAmount(Math.max(0, parseFloat(e.target.value) || 0))}
               placeholder="0"
               className="w-24 px-2 py-0.5 rounded border border-stone-200 text-right text-xs font-semibold focus:ring-1 focus:ring-forest-800"
             />
@@ -553,12 +650,12 @@ export default function PointOfSale() {
           <div className="flex justify-between items-baseline pt-2 border-t border-stone-200">
             <span className="font-serif font-bold text-sm text-stone-900">Total Payable:</span>
             <span className="font-serif font-black text-xl text-forest-950">
-              ₦{total.toLocaleString()}
+              ₦{grandTotal.toLocaleString()}
             </span>
           </div>
         </div>
 
-        {/* Payment Method Selector */}
+        {/* PAYMENT METHODS SELECTOR (Section 6 Requirement) */}
         <div className="space-y-2 pt-2 border-t border-stone-200">
           <label className="block text-xs font-bold text-stone-700">Payment Method</label>
           <div className="grid grid-cols-4 gap-1.5">
@@ -608,14 +705,14 @@ export default function PointOfSale() {
             </button>
           </div>
 
-          {/* Conditional Cash Payment Box */}
+          {/* Cash Payment Box */}
           {paymentMethod === 'cash' && (
             <div className="bg-stone-50 p-3 rounded-2xl border border-stone-200 space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-stone-700">Cash Tendered (₦):</span>
+                <span className="font-semibold text-stone-700">Cash Received (₦):</span>
                 <input
                   type="number"
-                  min={total}
+                  min={grandTotal}
                   value={amountTendered}
                   onChange={(e) => setAmountTendered(e.target.value)}
                   className="w-28 px-2.5 py-1 rounded-lg border border-stone-300 text-right font-bold text-sm focus:ring-1 focus:ring-forest-800"
@@ -636,7 +733,7 @@ export default function PointOfSale() {
                 ))}
                 <button
                   type="button"
-                  onClick={() => setAmountTendered(total.toString())}
+                  onClick={() => setAmountTendered(grandTotal.toString())}
                   className="px-2 py-0.5 rounded-lg bg-forest-800 text-gold-300 text-[10px] font-bold whitespace-nowrap"
                 >
                   Exact
@@ -652,11 +749,11 @@ export default function PointOfSale() {
             </div>
           )}
 
-          {/* Conditional Transfer Payment Box */}
+          {/* Bank Transfer Box */}
           {paymentMethod === 'bank_transfer' && (
             <div className="bg-blue-50/70 p-3 rounded-2xl border border-blue-200 space-y-2 text-xs">
               <p className="text-[11px] text-blue-900 font-medium">
-                Verify receipt of funds into Northern Flavors account before finalizing:
+                Verify receipt of funds into restaurant bank account:
               </p>
               <div className="bg-white p-2 rounded-xl text-[11px] font-mono border border-blue-100">
                 <div className="font-bold text-forest-950">Jaiz Bank / Zenith Bank</div>
@@ -673,11 +770,11 @@ export default function PointOfSale() {
             </div>
           )}
 
-          {/* Conditional POS Terminal Box */}
+          {/* POS Terminal Box */}
           {paymentMethod === 'pos_terminal' && (
             <div className="bg-purple-50/70 p-3 rounded-2xl border border-purple-200 space-y-2 text-xs">
               <p className="text-[11px] text-purple-900 font-medium">
-                Enter POS slip reference or Stan # from counter terminal:
+                Enter POS slip reference or STAN from counter terminal:
               </p>
               <input
                 type="text"
@@ -690,7 +787,7 @@ export default function PointOfSale() {
             </div>
           )}
 
-          {/* Conditional Split Payment Box */}
+          {/* Split Payment Box */}
           {paymentMethod === 'split' && (
             <div className="bg-stone-50 p-3 rounded-2xl border border-stone-200 space-y-2 text-xs">
               <span className="font-bold text-stone-700 block">Split Amounts</span>
@@ -734,7 +831,7 @@ export default function PointOfSale() {
           </div>
         )}
 
-        {/* Checkout Button */}
+        {/* Complete Sale Button */}
         <button
           onClick={handleCompleteSale}
           disabled={cart.length === 0 || submitting}
@@ -743,7 +840,7 @@ export default function PointOfSale() {
           {submitting ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Processing Order & Printing...</span>
+              <span>Finalizing Sale & Deducting Stock...</span>
             </>
           ) : (
             <>
@@ -754,24 +851,14 @@ export default function PointOfSale() {
         </button>
       </div>
 
-      {/* Completed Thermal Receipt Modal */}
+      {/* Completed Receipt Modal (80mm & A4) */}
       {completedReceipt && (
         <ThermalReceiptModal
           receipt={completedReceipt}
           onClose={() => setCompletedReceipt(null)}
+          onNewSale={resetForNewSale}
         />
       )}
-
-      {/* Open Shift Modal Prompt */}
-      <OpenShiftModal
-        isOpen={showOpenShiftModal}
-        onClose={() => setShowOpenShiftModal(false)}
-        onSuccess={() => {
-          refreshShift();
-          setShowOpenShiftModal(false);
-        }}
-      />
     </div>
   );
 }
-

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { cashierService } from '../services/cashierService';
-import { useShift } from '../context/ShiftContext';
 import {
   CreditCard,
   Search,
@@ -13,14 +12,10 @@ import {
   Receipt,
   X,
   Loader2,
-  ChevronDown,
-  Eye,
 } from 'lucide-react';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
-import { OpenShiftModal } from '../components/ShiftModals';
 
 export default function OrdersPayments() {
-  const { activeShift, isShiftOpen, refreshShift } = useShift();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,7 +35,6 @@ export default function OrdersPayments() {
 
   // Receipt Modal
   const [receiptData, setReceiptData] = useState(null);
-  const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
 
   const loadOrders = async () => {
     try {
@@ -90,11 +84,6 @@ export default function OrdersPayments() {
       return;
     }
 
-    if (paymentMethod === 'cash' && !isShiftOpen) {
-      setShowOpenShiftModal(true);
-      return;
-    }
-
     let tendered = null;
     let change = 0;
     if (paymentMethod === 'cash') {
@@ -117,7 +106,7 @@ export default function OrdersPayments() {
       ref = transferRef.trim();
     } else if (paymentMethod === 'pos_terminal') {
       if (!posRef.trim()) {
-        setPaymentError('Please enter the POS approval code or Stan reference.');
+        setPaymentError('Please enter the POS approval code or STAN reference.');
         return;
       }
       provider = 'pos_terminal';
@@ -137,7 +126,6 @@ export default function OrdersPayments() {
         provider,
         transactionReference: ref,
         notes: paymentNotes || null,
-        shiftId: activeShift?.id || null,
       });
 
       // Construct receipt for viewing
@@ -160,13 +148,15 @@ export default function OrdersPayments() {
         metadata: {
           customer_name: payingOrder.customer?.full_name,
           order_number: payingOrder.order_number,
+          order_type: payingOrder.order_type,
+          packaging_fee: payingOrder.packaging_fee,
+          delivery_fee: payingOrder.delivery_fee,
         },
       };
 
       setReceiptData(slip);
       setPayingOrder(null);
       loadOrders();
-      refreshShift();
     } catch (err) {
       console.error('Error recording order payment:', err);
       setPaymentError(err.message || 'Payment recording failed');
@@ -181,10 +171,10 @@ export default function OrdersPayments() {
       <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="font-serif text-2xl font-bold text-forest-950">
-            Orders & Payments Management
+            Orders & Payments
           </h2>
           <p className="text-xs text-stone-500 mt-1">
-            Accept and verify payments for customer online orders and phone deliveries
+            Accept and record payments for online orders, dine-in and deliveries
           </p>
         </div>
 
@@ -253,7 +243,7 @@ export default function OrdersPayments() {
         </div>
       )}
 
-      {/* Orders Table */}
+      {/* Orders Table (Section 9 Columns) */}
       <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -261,11 +251,11 @@ export default function OrdersPayments() {
               <tr className="border-b border-stone-200 bg-stone-50/70 text-stone-500 uppercase font-semibold">
                 <th className="py-3 px-4">Order #</th>
                 <th className="py-3 px-4">Customer</th>
-                <th className="py-3 px-4">Source</th>
-                <th className="py-3 px-4">Items Summary</th>
-                <th className="py-3 px-4">Order Total</th>
-                <th className="py-3 px-4">Amount Paid</th>
-                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Order Type</th>
+                <th className="py-3 px-4">Total</th>
+                <th className="py-3 px-4">Payment Status</th>
+                <th className="py-3 px-4">Order Status</th>
+                <th className="py-3 px-4">Date</th>
                 <th className="py-3 px-4 text-right">Action</th>
               </tr>
             </thead>
@@ -304,25 +294,12 @@ export default function OrdersPayments() {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            order.order_source === 'pos'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
-                        >
-                          {order.order_source || 'online'}
+                        <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 text-[10px] font-bold uppercase">
+                          {order.order_type || 'dine_in'}
                         </span>
-                      </td>
-                      <td className="py-3 px-4 max-w-[200px] truncate text-stone-600">
-                        {order.items?.map((it) => `${it.quantity}x ${it.product_name}`).join(', ') ||
-                          'No items'}
                       </td>
                       <td className="py-3 px-4 font-serif font-bold text-stone-900">
                         ₦{total.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 font-serif font-bold text-emerald-800">
-                        ₦{paid.toLocaleString()}
                       </td>
                       <td className="py-3 px-4">
                         <span
@@ -336,6 +313,17 @@ export default function OrdersPayments() {
                         >
                           {order.payment_status}
                         </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 font-semibold text-[10px] uppercase">
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-stone-500 whitespace-nowrap">
+                        {new Date(order.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </td>
                       <td className="py-3 px-4 text-right">
                         {!isPaid ? (
@@ -362,6 +350,7 @@ export default function OrdersPayments() {
                                 metadata: {
                                   customer_name: order.customer?.full_name,
                                   order_number: order.order_number,
+                                  order_type: order.order_type,
                                 },
                               })
                             }
@@ -495,7 +484,7 @@ export default function OrdersPayments() {
               {paymentMethod === 'cash' && (
                 <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 space-y-2 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="font-semibold text-stone-700">Cash Tendered (₦):</span>
+                    <span className="font-semibold text-stone-700">Cash Received (₦):</span>
                     <input
                       type="number"
                       value={amountTendered}
@@ -571,24 +560,13 @@ export default function OrdersPayments() {
         </div>
       )}
 
-      {/* Thermal Receipt Modal */}
+      {/* Thermal / A4 Receipt Modal */}
       {receiptData && (
         <ThermalReceiptModal
           receipt={receiptData}
           onClose={() => setReceiptData(null)}
         />
       )}
-
-      {/* Open Shift Modal */}
-      <OpenShiftModal
-        isOpen={showOpenShiftModal}
-        onClose={() => setShowOpenShiftModal(false)}
-        onSuccess={() => {
-          refreshShift();
-          setShowOpenShiftModal(false);
-        }}
-      />
     </div>
   );
 }
-

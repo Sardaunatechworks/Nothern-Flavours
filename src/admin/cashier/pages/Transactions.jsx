@@ -213,7 +213,13 @@ export default function Transactions() {
                             receipt_number: `REC-${tx.transaction_number.replace('POS-', '')}`,
                             issued_at: tx.completed_at,
                             reprint_count: 0,
-                            order: tx.order,
+                            order: {
+                              ...tx.order,
+                              order_type: tx.order_type || tx.order?.order_type || 'dine_in',
+                              packaging_fee: tx.packaging_fee || 0,
+                              delivery_fee: tx.delivery_fee || 0,
+                              total_amount: tx.total,
+                            },
                             payment: {
                               payment_method: tx.payment_method,
                               amount: tx.total,
@@ -222,6 +228,8 @@ export default function Transactions() {
                             metadata: {
                               customer_name: tx.customer_name,
                               order_number: tx.order?.order_number,
+                              order_type: tx.order_type,
+                              packaging_fee: tx.packaging_fee,
                             },
                           })
                         }

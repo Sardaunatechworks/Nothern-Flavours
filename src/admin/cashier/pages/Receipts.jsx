@@ -6,8 +6,6 @@ import {
   Printer,
   RefreshCw,
   Loader2,
-  Calendar,
-  AlertCircle,
 } from 'lucide-react';
 import ThermalReceiptModal from '../components/ThermalReceiptModal';
 
@@ -50,10 +48,10 @@ export default function Receipts() {
       <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="font-serif text-2xl font-bold text-forest-950">
-            Receipts & Invoicing Registry
+            Receipts History
           </h2>
           <p className="text-xs text-stone-500 mt-1">
-            Thermal slip audit log, reprinting verification, and sales vouchers
+            Search, print, and reprint customer sales receipts and invoice vouchers
           </p>
         </div>
 
@@ -85,18 +83,18 @@ export default function Receipts() {
         </div>
       )}
 
-      {/* Receipts Table */}
+      {/* Receipts Table (Section 11: Receipt #, Order #, Amount, Order type, Issued date, Cashier, Print/reprint) */}
       <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-stone-200 bg-stone-50/70 text-stone-500 uppercase font-semibold">
                 <th className="py-3 px-4">Receipt #</th>
-                <th className="py-3 px-4">Order Ref</th>
-                <th className="py-3 px-4">Customer</th>
-                <th className="py-3 px-4">Type</th>
-                <th className="py-3 px-4">Issued By</th>
-                <th className="py-3 px-4">Issued At</th>
+                <th className="py-3 px-4">Order #</th>
+                <th className="py-3 px-4">Amount</th>
+                <th className="py-3 px-4">Order Type</th>
+                <th className="py-3 px-4">Issued Date</th>
+                <th className="py-3 px-4">Cashier</th>
                 <th className="py-3 px-4 text-center">Reprints</th>
                 <th className="py-3 px-4 text-right">Action</th>
               </tr>
@@ -116,51 +114,56 @@ export default function Receipts() {
                   </td>
                 </tr>
               ) : (
-                receipts.map((rc) => (
-                  <tr key={rc.id} className="hover:bg-stone-50/80 transition">
-                    <td className="py-3 px-4 font-mono font-bold text-forest-950">
-                      {rc.receipt_number}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-stone-600">
-                      {rc.order?.order_number || 'N/A'}
-                    </td>
-                    <td className="py-3 px-4 font-medium text-stone-800">
-                      {rc.order?.customer?.full_name || rc.metadata?.customer_name || 'Walk-in'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 text-[10px] font-bold uppercase">
-                        {rc.receipt_type}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-stone-600">
-                      {rc.cashier?.full_name || 'Cashier'}
-                    </td>
-                    <td className="py-3 px-4 text-stone-500 whitespace-nowrap">
-                      {new Date(rc.issued_at).toLocaleString([], {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      })}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      {rc.reprint_count > 0 ? (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px]">
-                          {rc.reprint_count}x
+                receipts.map((rc) => {
+                  const amount = Number(rc.order?.total_amount || rc.payment?.amount || 0);
+                  const orderType = rc.order?.order_type || rc.metadata?.order_type || 'dine_in';
+
+                  return (
+                    <tr key={rc.id} className="hover:bg-stone-50/80 transition">
+                      <td className="py-3 px-4 font-mono font-bold text-forest-950">
+                        {rc.receipt_number}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-stone-600">
+                        {rc.order?.order_number || 'N/A'}
+                      </td>
+                      <td className="py-3 px-4 font-serif font-bold text-forest-900">
+                        ₦{amount.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 text-[10px] font-bold uppercase">
+                          {orderType}
                         </span>
-                      ) : (
-                        <span className="text-stone-400 font-mono">0</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedReceipt(rc)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-forest-800 text-gold-300 hover:bg-forest-900 font-bold text-xs rounded-xl transition shadow-sm"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                        <span>Print / View</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="py-3 px-4 text-stone-500 whitespace-nowrap">
+                        {new Date(rc.issued_at).toLocaleString([], {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        })}
+                      </td>
+                      <td className="py-3 px-4 text-stone-600">
+                        {rc.cashier?.full_name || 'Cashier'}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {rc.reprint_count > 0 ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px]">
+                            {rc.reprint_count}x
+                          </span>
+                        ) : (
+                          <span className="text-stone-400 font-mono">0</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => setSelectedReceipt(rc)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-forest-800 text-gold-300 hover:bg-forest-900 font-bold text-xs rounded-xl transition shadow-sm"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>Print / Reprint</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -183,4 +186,3 @@ export default function Receipts() {
     </div>
   );
 }
-

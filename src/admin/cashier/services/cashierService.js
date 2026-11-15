@@ -323,6 +323,9 @@ export const cashierService = {
     items,
     payments,
     customer = {},
+    orderType = 'dine_in',
+    packagingFee = 0,
+    deliveryFee = 0,
     discountAmount = 0,
     taxAmount = 0,
     notes = null,
@@ -340,6 +343,9 @@ export const cashierService = {
           p_tax_amount: Number(taxAmount) || 0,
           p_notes: notes || null,
           p_shift_id: shiftId || null,
+          p_order_type: orderType || 'dine_in',
+          p_packaging_fee: Number(packagingFee) || 0,
+          p_delivery_fee: Number(deliveryFee) || 0,
         });
 
         if (!error && data) return data;
@@ -355,25 +361,37 @@ export const cashierService = {
     const transNumber = `POS-${dateStr}-${randSeq}`;
     const receiptNumber = `REC-${dateStr}-${randSeq}`;
 
-    const subtotal = items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
-    const total = Math.max(0, subtotal - Number(discountAmount) + Number(taxAmount));
+    const subtotal = items.reduce((s, it) => s + (Number(it.unit_price) || 0) * (Number(it.quantity) || 1), 0);
+    const packFee = Number(packagingFee) || 0;
+    const delFee = Number(deliveryFee) || 0;
+    const disc = Number(discountAmount) || 0;
+    const tax = Number(taxAmount) || 0;
+    const total = Math.max(0, subtotal - disc + tax + packFee + delFee);
     const amountPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
 
     const newTx = {
       id: crypto.randomUUID ? crypto.randomUUID() : `tx-${Date.now()}`,
       transaction_number: transNumber,
+      order_type: orderType,
+      packaging_fee: packFee,
+      delivery_fee: delFee,
       order: {
         order_number: orderNumber,
         subtotal,
-        discount_amount: discountAmount,
+        discount_amount: disc,
+        tax_amount: tax,
+        packaging_fee: packFee,
+        delivery_fee: delFee,
         total_amount: total,
         items,
         customer,
+        order_type: orderType,
       },
-      customer_name: customer.name || 'Walk-in Customer',
+      customer_name: customer.name || (orderType === 'dine_in' ? 'Dine-in Customer' : 'Walk-in Customer'),
       customer_phone: customer.phone || null,
       subtotal,
-      discount_amount: discountAmount,
+      discount_amount: disc,
+      tax_amount: tax,
       total,
       payment_method: payments.length === 1 ? payments[0].method : 'split',
       status: 'completed',
@@ -393,6 +411,7 @@ export const cashierService = {
       metadata: {
         customer_name: newTx.customer_name,
         order_number: orderNumber,
+        order_type: orderType,
       },
     };
 
@@ -418,8 +437,12 @@ export const cashierService = {
       transaction_number: transNumber,
       receipt_id: newReceipt.id,
       receipt_number: receiptNumber,
+      order_type: orderType,
+      packaging_fee: packFee,
+      delivery_fee: delFee,
       subtotal,
-      discount: discountAmount,
+      discount: disc,
+      tax,
       total,
       amount_paid: amountPaid,
     };
@@ -525,7 +548,7 @@ export const cashierService = {
           .select(`
             *,
             cashier:profiles!cashier_id(id, full_name),
-            order:orders(id, order_number, status, payment_status, items:order_items(*)),
+            order:orders(id, order_number, status, payment_status, order_type, packaging_fee, delivery_fee, items:order_items(*)),
             shift:cashier_shifts(id, shift_number)
           `)
           .order('completed_at', { ascending: false })
@@ -556,7 +579,7 @@ export const cashierService = {
           .select(`
             *,
             cashier:profiles!cashier_id(id, full_name),
-            order:orders(id, order_number, total_amount, payment_status, created_at, customer:customers(full_name, phone), items:order_items(*)),
+            order:orders(id, order_number, total_amount, payment_status, order_type, packaging_fee, delivery_fee, created_at, customer:customers(full_name, phone), items:order_items(*)),
             payment:payments(id, payment_method, amount, amount_tendered, change_due, provider, transaction_reference)
           `)
           .order('issued_at', { ascending: false })

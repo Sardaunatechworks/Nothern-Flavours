@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { menuService } from '../../services/menuService';
 import { supabase, isSupabaseConfigured } from '../../services/supabase';
-import { Settings as SettingsIcon, Save, Store, Truck, Clock, MessageSquare, Phone } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, Truck, Clock, Package } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function Settings() {
@@ -36,6 +36,10 @@ export default function Settings() {
       accepting_orders: formData.get('accepting_orders') === 'on',
       delivery_enabled: formData.get('delivery_enabled') === 'on',
       pickup_enabled: formData.get('pickup_enabled') === 'on',
+      // Section 4 Takeaway Packaging settings
+      takeaway_packaging_enabled: formData.get('takeaway_packaging_enabled') === 'on',
+      takeaway_packaging_model: formData.get('takeaway_packaging_model') || 'order',
+      takeaway_packaging_fee: parseFloat(formData.get('takeaway_packaging_fee') || '500'),
     };
 
     try {
@@ -70,7 +74,7 @@ export default function Settings() {
           Restaurant Settings
         </h1>
         <p className="text-xs text-stone-500">
-          Configure operating hours, contact numbers, delivery charges, and order acceptance toggles
+          Configure operating status, takeaway packaging charges, delivery fees, and restaurant contact information
         </p>
       </div>
 
@@ -115,6 +119,60 @@ export default function Settings() {
               className="w-5 h-5 accent-forest-800 rounded cursor-pointer"
             />
           </label>
+        </div>
+
+        {/* TAKEAWAY PACKAGING CONFIGURATION (Section 4 Requirement) */}
+        <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-soft space-y-4">
+          <div className="flex items-center gap-2">
+            <Package className="w-5 h-5 text-forest-800" />
+            <div>
+              <h3 className="font-serif text-base font-bold text-forest-950">
+                Takeaway Packaging Configuration
+              </h3>
+              <p className="text-[11px] text-stone-500">
+                Configure container and packaging fees automatically applied to takeaway POS orders
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+            <div className="space-y-1">
+              <label className="font-bold text-stone-700 block">Packaging Charge Status</label>
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  name="takeaway_packaging_enabled"
+                  defaultChecked={settings.takeaway_packaging_enabled !== false}
+                  className="w-4 h-4 accent-forest-800 rounded cursor-pointer"
+                />
+                <span className="text-stone-700 font-semibold">Enable Packaging Fee</span>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-bold text-stone-700 block">Calculation Model</label>
+              <select
+                name="takeaway_packaging_model"
+                defaultValue={settings.takeaway_packaging_model || 'order'}
+                className="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-forest-800 bg-white"
+              >
+                <option value="order">Fixed Fee per Order</option>
+                <option value="item">Fee per Food Item</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-bold text-stone-700 block">Packaging Fee Amount (₦)</label>
+              <input
+                type="number"
+                step="50"
+                min="0"
+                name="takeaway_packaging_fee"
+                defaultValue={settings.takeaway_packaging_fee ?? 500}
+                className="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-forest-800 font-bold"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Business Identity Card */}
@@ -202,4 +260,3 @@ export default function Settings() {
     </div>
   );
 }
-

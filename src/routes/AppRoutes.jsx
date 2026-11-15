@@ -25,15 +25,10 @@ import DeliveryPricing from '../admin/pages/DeliveryPricing';
 
 // Cashier & Point of Sale module
 import CashierLayout from '../admin/cashier/layouts/CashierLayout';
-import CashierOverview from '../admin/cashier/pages/CashierOverview';
 import PointOfSale from '../admin/cashier/pages/PointOfSale';
 import OrdersPayments from '../admin/cashier/pages/OrdersPayments';
 import Transactions from '../admin/cashier/pages/Transactions';
 import Receipts from '../admin/cashier/pages/Receipts';
-import Shifts from '../admin/cashier/pages/Shifts';
-import SalesSummary from '../admin/cashier/pages/SalesSummary';
-import CashierProfile from '../admin/cashier/pages/CashierProfile';
-import { ShiftProvider } from '../admin/cashier/context/ShiftContext';
 
 // Route guard
 import ProtectedRoute from './ProtectedRoute';
@@ -161,20 +156,15 @@ export default function AppRoutes() {
         path="/admin/cashier"
         element={
           <ProtectedRoute allowedRoles={['super_admin', 'manager', 'cashier']}>
-            <ShiftProvider>
-              <CashierLayout />
-            </ShiftProvider>
+            <CashierLayout />
           </ProtectedRoute>
         }
       >
-        <Route index element={<CashierOverview />} />
+        <Route index element={<PointOfSale />} />
         <Route path="pos" element={<PointOfSale />} />
         <Route path="orders" element={<OrdersPayments />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="receipts" element={<Receipts />} />
-        <Route path="shifts" element={<Shifts />} />
-        <Route path="summary" element={<SalesSummary />} />
-        <Route path="profile" element={<CashierProfile />} />
       </Route>
 
       {/* 404 & Fallback */}

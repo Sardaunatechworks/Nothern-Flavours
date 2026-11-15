@@ -19,6 +19,7 @@ import {
   X,
   ExternalLink,
   Store,
+  Receipt,
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -33,7 +34,7 @@ export default function AdminLayout() {
 
   const navItems = [
     {
-      label: 'Dashboard',
+      label: 'Overview',
       path: '/admin',
       icon: LayoutDashboard,
       roles: ['super_admin', 'manager', 'order_manager', 'inventory_manager', 'staff'],
@@ -46,22 +47,16 @@ export default function AdminLayout() {
       roles: ['super_admin', 'manager', 'order_manager', 'staff'],
     },
     {
-      label: 'Cashier & POS',
+      label: 'POS Terminal',
       path: '/admin/cashier',
       icon: Store,
       roles: ['super_admin', 'manager', 'cashier'],
     },
     {
-      label: 'Products',
+      label: 'Menu & Categories',
       path: '/admin/products',
       icon: UtensilsCrossed,
       roles: ['super_admin', 'manager', 'inventory_manager'],
-    },
-    {
-      label: 'Categories',
-      path: '/admin/categories',
-      icon: Tags,
-      roles: ['super_admin', 'manager'],
     },
     {
       label: 'Inventory',
@@ -70,45 +65,21 @@ export default function AdminLayout() {
       roles: ['super_admin', 'manager', 'inventory_manager'],
     },
     {
-      label: 'Customers',
-      path: '/admin/customers',
-      icon: Users,
-      roles: ['super_admin', 'manager', 'order_manager'],
-    },
-    {
-      label: 'Suppliers',
-      path: '/admin/suppliers',
-      icon: Truck,
-      roles: ['super_admin', 'manager', 'inventory_manager'],
-    },
-    {
-      label: 'Sales & Reports',
-      path: '/admin/reports',
-      icon: BarChart3,
-      roles: ['super_admin', 'manager'],
-    },
-    {
-      label: 'Staff Management',
+      label: 'Cashiers & Staff',
       path: '/admin/staff',
       icon: UserCog,
-      roles: ['super_admin'],
-    },
-    {
-      label: 'Notifications',
-      path: '/admin/notifications',
-      icon: Bell,
-      roles: ['super_admin', 'manager', 'order_manager', 'inventory_manager', 'staff'],
-    },
-    {
-      label: 'Activity Logs',
-      path: '/admin/activity-logs',
-      icon: History,
       roles: ['super_admin', 'manager'],
     },
     {
-      label: 'Delivery Pricing',
-      path: '/admin/delivery',
-      icon: Truck,
+      label: 'Sales & Payments',
+      path: '/admin/cashier/transactions',
+      icon: Receipt,
+      roles: ['super_admin', 'manager', 'cashier'],
+    },
+    {
+      label: 'Reports',
+      path: '/admin/reports',
+      icon: BarChart3,
       roles: ['super_admin', 'manager'],
     },
     {
