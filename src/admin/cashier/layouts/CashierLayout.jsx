@@ -35,9 +35,11 @@ export default function CashierLayout() {
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Brand Logo & POS Terminal Title */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-forest-800 border-2 border-gold-400 flex items-center justify-center font-serif text-gold-300 font-bold text-lg shadow-sm">
-                NF
-              </div>
+              <img
+                src="/logo.png"
+                alt="Northern Flavours Logo"
+                className="w-10 h-10 rounded-full object-cover border-2 border-gold-400 shadow-sm bg-forest-800"
+              />
               <div>
                 <h1 className="font-serif font-black text-sm tracking-wide text-white leading-none">
                   NORTHERN FLAVORS

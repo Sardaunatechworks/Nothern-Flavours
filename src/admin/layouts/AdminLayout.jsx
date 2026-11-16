@@ -99,9 +99,11 @@ export default function AdminLayout() {
       {/* Mobile Top Header */}
       <div className="md:hidden bg-forest-900 text-cream-50 px-4 py-3.5 flex items-center justify-between shadow sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-forest-800 border border-gold-500 flex items-center justify-center">
-            <span className="font-serif text-gold-400 text-sm font-bold">NF</span>
-          </div>
+          <img
+            src="/logo.png"
+            alt="Northern Flavours Logo"
+            className="w-8 h-8 rounded-full object-cover border border-gold-500 bg-forest-800"
+          />
           <div>
             <span className="font-serif text-sm font-bold">Northern Flavours</span>
             <p className="text-[9px] text-gold-400">Staff Portal</p>
@@ -125,9 +127,11 @@ export default function AdminLayout() {
         {/* Brand header in sidebar */}
         <div className="p-5 border-b border-forest-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-forest-800 border-2 border-gold-500/80 flex items-center justify-center">
-              <span className="font-serif text-gold-400 text-lg font-bold">NF</span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="Northern Flavours Logo"
+              className="w-10 h-10 rounded-full object-cover border-2 border-gold-500/80 shadow-sm bg-forest-800"
+            />
             <div>
               <h2 className="font-serif text-sm font-bold text-cream-50 uppercase tracking-wide">
                 Northern Flavours

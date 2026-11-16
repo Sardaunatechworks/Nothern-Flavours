@@ -169,6 +169,11 @@ ${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLo
             <div className="max-w-[340px] mx-auto font-mono text-xs text-stone-900 space-y-4 print:p-0 print:text-[11px]">
               {/* Restaurant Masthead */}
               <div className="text-center space-y-1">
+                <img
+                  src="/logo.png"
+                  alt="Northern Flavors Logo"
+                  className="w-12 h-12 mx-auto rounded-full object-cover border border-stone-200 mb-1"
+                />
                 <h2 className="font-serif font-black text-lg tracking-tight text-forest-950 uppercase">
                   Northern Flavors
                 </h2>
@@ -308,13 +313,20 @@ ${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLo
             /* ================= A4 INVOICE FORMAT ================= */
             <div className="p-8 space-y-6 text-sm text-stone-900 font-sans">
               <div className="flex justify-between items-start border-b border-stone-200 pb-6">
-                <div>
-                  <h1 className="font-serif font-black text-2xl text-forest-950">
-                    NORTHERN FLAVORS
-                  </h1>
-                  <p className="text-xs text-stone-500 mt-1">Authentic Northern Cuisine & Grills</p>
-                  <p className="text-xs text-stone-500">Gajambe Plaza, Yalwawa, Dutse, Jigawa State</p>
-                  <p className="text-xs text-stone-500">Tel: +234 906 820 2567</p>
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/logo.png"
+                    alt="Northern Flavors Logo"
+                    className="w-14 h-14 rounded-full object-cover border border-stone-200 shadow-sm"
+                  />
+                  <div>
+                    <h1 className="font-serif font-black text-2xl text-forest-950">
+                      NORTHERN FLAVORS
+                    </h1>
+                    <p className="text-xs text-stone-500 mt-1">Authentic Northern Cuisine & Grills</p>
+                    <p className="text-xs text-stone-500">Gajambe Plaza, Yalwawa, Dutse, Jigawa State</p>
+                    <p className="text-xs text-stone-500">Tel: +234 906 820 2567</p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <span className="font-mono font-bold text-lg text-forest-900 block">

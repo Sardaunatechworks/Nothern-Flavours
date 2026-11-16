@@ -9,9 +9,11 @@ export default function Footer() {
         {/* Brand column */}
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-forest-900 border border-gold-500/70 flex items-center justify-center">
-              <span className="font-serif text-gold-500 text-lg font-bold">NF</span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="Northern Flavours Logo"
+              className="w-11 h-11 rounded-full object-cover border border-gold-500/70 shadow-sm bg-forest-900"
+            />
             <div>
               <span className="font-serif text-lg font-bold text-cream-50 tracking-wider">
                 NORTHERN FLAVOURS

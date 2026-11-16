@@ -63,9 +63,11 @@ export default function Login() {
 
       <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-stone-200/90 shadow-elevated space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-full bg-forest-800 border-2 border-gold-500 flex items-center justify-center mx-auto shadow-md">
-            <span className="font-serif text-gold-400 text-2xl font-bold">NF</span>
-          </div>
+          <img
+            src="/logo.png"
+            alt="Northern Flavours Logo"
+            className="w-16 h-16 rounded-full object-cover border-2 border-gold-500 mx-auto shadow-md bg-forest-800"
+          />
           <h2 className="font-serif text-2xl font-bold text-forest-950">Staff & Cashier Portal</h2>
           <p className="text-xs text-stone-500">
             Sign in to access restaurant ordering, POS register & management

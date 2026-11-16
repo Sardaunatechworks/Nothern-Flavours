@@ -11,9 +11,11 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         {/* Brand identity: Circular NF logo & title */}
         <Link to="/" className="flex items-center gap-3.5 group">
-          <div className="w-12 h-12 rounded-full bg-forest-900 border-2 border-gold-500/80 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-200">
-            <span className="font-serif text-gold-500 text-xl font-bold tracking-tight">NF</span>
-          </div>
+          <img
+            src="/logo.png"
+            alt="Northern Flavours Logo"
+            className="w-12 h-12 rounded-full object-cover border-2 border-gold-500/80 shadow-md group-hover:scale-105 transition-transform duration-200 bg-forest-900"
+          />
           <div>
             <h1 className="font-serif text-lg sm:text-xl font-bold tracking-wider text-cream-50 uppercase">
               Northern Flavours
