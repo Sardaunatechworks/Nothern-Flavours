@@ -565,7 +565,7 @@ export const cashierService = {
         }
 
         const { data, error } = await query;
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           return data.map((tx) => {
             const ord = tx.order || {};
             const items = ord.order_items || ord.items || [];
@@ -636,7 +636,7 @@ export const cashierService = {
         }
 
         const { data, error } = await query;
-        if (!error && data && data.length > 0) {
+        if (!error && data) {
           return data.map((rc) => {
             const ord = rc.order || {};
             const items = ord.order_items || ord.items || [];

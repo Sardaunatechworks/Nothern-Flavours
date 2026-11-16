@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { Lock, Mail, AlertCircle, ArrowLeft, Loader2, Store, Shield } from 'lucide-react';
 
 export default function Login() {
-  const [email, setEmail] = useState('cashier@northernflavors.ng');
-  const [password, setPassword] = useState('cashier123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState('cashier'); // 'admin' | 'cashier'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
