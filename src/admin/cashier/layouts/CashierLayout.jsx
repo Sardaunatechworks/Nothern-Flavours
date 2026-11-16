@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -8,11 +8,14 @@ import {
   FileText,
   LogOut,
   ChevronRight,
+  KeyRound,
 } from 'lucide-react';
+import UpdatePasswordModal from '../../../components/auth/UpdatePasswordModal';
 
 export default function CashierLayout() {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -62,14 +65,21 @@ export default function CashierLayout() {
                 </Link>
               )}
 
-              <div className="text-right hidden sm:block">
-                <span className="text-xs font-bold text-white block leading-tight">
-                  {user?.profile?.full_name || 'Cashier Staff'}
-                </span>
-                <span className="text-[10px] text-gold-300/80 uppercase font-medium">
-                  {role?.replace('_', ' ')}
-                </span>
-              </div>
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="text-right hidden sm:flex items-center gap-2 p-1.5 rounded-xl hover:bg-forest-800 transition"
+                title="Change Password"
+              >
+                <div>
+                  <span className="text-xs font-bold text-white block leading-tight">
+                    {user?.profile?.full_name || 'Cashier Staff'}
+                  </span>
+                  <span className="text-[10px] text-gold-300/80 uppercase font-medium">
+                    {role?.replace('_', ' ')}
+                  </span>
+                </div>
+                <KeyRound className="w-3.5 h-3.5 text-gold-400" />
+              </button>
 
               <button
                 onClick={handleLogout}
@@ -118,6 +128,12 @@ export default function CashierLayout() {
       <footer className="bg-white border-t border-stone-200 py-3 text-center text-xs text-stone-500">
         <p>Northern Flavors Restaurant POS Terminal • Gajambe Plaza, Dutse, Jigawa State</p>
       </footer>
+
+      {/* Change Password Modal */}
+      <UpdatePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+      />
     </div>
   );
 }

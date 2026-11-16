@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { menuService } from '../../services/menuService';
+import { staffService } from '../../services/staffService';
 import { supabase, isSupabaseConfigured } from '../../services/supabase';
-import { Settings as SettingsIcon, Save, Store, Truck, Clock, Package } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, Truck, Clock, Package, Lock, KeyRound } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function Settings() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -60,6 +64,30 @@ export default function Settings() {
       });
     } catch (err) {
       Swal.fire('Error', err.message, 'error');
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      Swal.fire('Password Too Short', 'Password must be at least 6 characters.', 'warning');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Swal.fire('Mismatch', 'Passwords do not match.', 'warning');
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+      await staffService.updateOwnPassword(newPassword);
+      setNewPassword('');
+      setConfirmPassword('');
+      Swal.fire('Success', 'Your administrator password has been updated successfully.', 'success');
+    } catch (err) {
+      Swal.fire('Error', err.message || 'Failed to update password', 'error');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -257,6 +285,62 @@ export default function Settings() {
           <span>Save Configuration Changes</span>
         </button>
       </form>
+
+      {/* Account Security & Password Update Section */}
+      <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-soft space-y-4">
+        <div className="flex items-center gap-3 border-b border-stone-100 pb-3">
+          <div className="w-9 h-9 rounded-full bg-forest-50 border border-forest-100 flex items-center justify-center text-forest-800">
+            <KeyRound className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-serif text-base font-bold text-forest-950">Administrator Security & Password</h3>
+            <p className="text-xs text-stone-500">Update your account login password</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleUpdatePassword} className="space-y-4 max-w-lg">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="space-y-1">
+              <label className="block font-bold text-stone-700">New Password</label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-forest-800 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block font-bold text-stone-700">Confirm New Password</label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat new password"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-300 text-xs focus:ring-2 focus:ring-forest-800 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={passwordLoading}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-forest-800 hover:bg-forest-700 text-gold-400 font-bold text-xs shadow-md transition-all active:scale-95"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>{passwordLoading ? 'Updating Password...' : 'Update My Password'}</span>
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -63,17 +63,18 @@ export default function Footer() {
             <Clock className="w-4 h-4 text-gold-500 shrink-0 mt-0.5" />
             <div>
               <p className="font-medium text-cream-50">Monday – Sunday</p>
-              <p className="text-xs text-stone-400">8:00 AM – 10:00 PM</p>
+              <p className="text-xs text-stone-400">8:00 AM – 12:00 AM</p>
             </div>
           </div>
 
           <div className="pt-4 border-t border-forest-900/80">
             <Link
               to="/admin/login"
-              className="inline-flex items-center gap-2 text-xs text-stone-400 hover:text-gold-400 transition-colors"
+              aria-label="Staff Portal"
+              className="inline-flex items-center gap-2 text-xs text-stone-500 hover:text-gold-400 transition-colors"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Staff Portal Login</span>
+              <span>Staff Access</span>
             </Link>
           </div>
         </div>
