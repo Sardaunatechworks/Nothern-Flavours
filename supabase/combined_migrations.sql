@@ -3538,8 +3538,7 @@ BEGIN
         WHERE id = v_admin_user_id;
 
         UPDATE auth.identities
-        SET email = v_admin_email,
-            provider_id = v_admin_user_id::text,
+        SET provider_id = v_admin_user_id::text,
             identity_data = jsonb_build_object('sub', v_admin_user_id::text, 'email', v_admin_email),
             updated_at = now()
         WHERE user_id = v_admin_user_id;
@@ -3598,8 +3597,7 @@ BEGIN
         WHERE id = v_cashier_user_id;
 
         UPDATE auth.identities
-        SET email = v_cashier_email,
-            provider_id = v_cashier_user_id::text,
+        SET provider_id = v_cashier_user_id::text,
             identity_data = jsonb_build_object('sub', v_cashier_user_id::text, 'email', v_cashier_email),
             updated_at = now()
         WHERE user_id = v_cashier_user_id;
@@ -3639,3 +3637,4 @@ BEGIN
             is_active = true;
     END IF;
 END $$;
+
