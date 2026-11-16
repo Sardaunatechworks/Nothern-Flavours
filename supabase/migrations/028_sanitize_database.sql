@@ -64,9 +64,7 @@ INSERT INTO public.restaurant_settings (
     phone,
     whatsapp_number,
     address,
-    opening_time,
-    closing_time,
-    is_accepting_orders,
+    accepting_orders,
     default_delivery_fee,
     takeaway_packaging_enabled,
     takeaway_packaging_model,
@@ -77,8 +75,6 @@ INSERT INTO public.restaurant_settings (
     '09068202567',
     '2349068202567',
     'Gajambe Plaza, Yalwawa, Dutse, Jigawa State, Nigeria',
-    '08:00:00',
-    '22:00:00',
     true,
     300.00,
     true,
@@ -90,6 +86,7 @@ ON CONFLICT (id) DO UPDATE SET
     phone = EXCLUDED.phone,
     whatsapp_number = EXCLUDED.whatsapp_number,
     address = EXCLUDED.address,
+    accepting_orders = EXCLUDED.accepting_orders,
     default_delivery_fee = EXCLUDED.default_delivery_fee,
     takeaway_packaging_enabled = EXCLUDED.takeaway_packaging_enabled,
     takeaway_packaging_model = EXCLUDED.takeaway_packaging_model,
@@ -113,3 +110,4 @@ SET is_active = true
 WHERE role IN ('super_admin', 'manager', 'cashier');
 
 COMMIT;
+
