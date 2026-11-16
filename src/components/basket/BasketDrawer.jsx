@@ -140,7 +140,7 @@ export default function BasketDrawer() {
                   </div>
                   <div className="flex items-center justify-between text-xs text-stone-500">
                     <span>Delivery fee</span>
-                    <span className="italic">Calculated at checkout</span>
+                    <span className="font-medium text-stone-700">₦300 (Flat delivery across Dutse)</span>
                   </div>
                   <div className="pt-2 border-t border-stone-200 flex items-center justify-between">
                     <span className="font-serif text-base font-bold text-forest-950">Total</span>

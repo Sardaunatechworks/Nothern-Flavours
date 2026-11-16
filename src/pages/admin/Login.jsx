@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowLeft, Loader2, Store, Shield } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState('cashier'); // 'admin' | 'cashier'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -14,19 +13,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || (selectedRole === 'cashier' ? '/admin/cashier' : '/admin');
-
-  const handleRoleSelect = (roleKey) => {
-    setSelectedRole(roleKey);
-    if (roleKey === 'cashier') {
-      setEmail('cashier@northernflavors.ng');
-      setPassword('cashier123');
-    } else {
-      setEmail('admin@northernflavors.ng');
-      setPassword('admin123');
-    }
-    setError('');
-  };
+  const from = location.state?.from?.pathname;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,15 +22,23 @@ export default function Login() {
 
     try {
       const authed = await login(email, password);
-      const userRole = authed?.profile?.role;
+      const profile = authed?.profile;
+      const userRole = profile?.role;
 
+      if (profile && profile.is_active === false) {
+        throw new Error('This account has been deactivated. Please contact the administrator.');
+      }
+
+      // Role-Based Access Routing (RBAC)
       if (userRole === 'cashier') {
         navigate('/admin/cashier', { replace: true });
+      } else if (from && from !== '/admin/login' && from !== '/admin/cashier') {
+        navigate(from, { replace: true });
       } else {
-        navigate(from === '/admin/cashier' ? '/admin' : from, { replace: true });
+        navigate('/admin', { replace: true });
       }
     } catch (err) {
-      setError(err.message || 'Login failed. Please verify credentials.');
+      setError(err.message || 'Login failed. Please verify your email and password.');
     } finally {
       setLoading(false);
     }
@@ -68,38 +63,10 @@ export default function Login() {
             alt="Northern Flavours Logo"
             className="w-16 h-16 rounded-full object-cover border-2 border-gold-500 mx-auto shadow-md bg-forest-800"
           />
-          <h2 className="font-serif text-2xl font-bold text-forest-950">Staff & Cashier Portal</h2>
+          <h2 className="font-serif text-2xl font-bold text-forest-950">Staff & Management Portal</h2>
           <p className="text-xs text-stone-500">
-            Sign in to access restaurant ordering, POS register & management
+            Sign in with your authorized staff credentials to continue
           </p>
-        </div>
-
-        {/* Quick Role Switcher Buttons */}
-        <div className="grid grid-cols-2 gap-2 p-1.5 bg-stone-100 rounded-2xl">
-          <button
-            type="button"
-            onClick={() => handleRoleSelect('cashier')}
-            className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-              selectedRole === 'cashier'
-                ? 'bg-forest-900 text-gold-300 shadow-sm'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <Store className="w-3.5 h-3.5" />
-            <span>Cashier (POS)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleRoleSelect('admin')}
-            className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-              selectedRole === 'admin'
-                ? 'bg-forest-900 text-gold-300 shadow-sm'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span>Super Admin</span>
-          </button>
         </div>
 
         {error && (
@@ -121,6 +88,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-forest-800"
                 placeholder="staff@northernflavors.ng"
+                autoComplete="email"
               />
             </div>
           </div>
@@ -136,6 +104,7 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-forest-800"
                 placeholder="••••••••"
+                autoComplete="current-password"
               />
             </div>
           </div>
@@ -143,7 +112,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-full bg-forest-800 hover:bg-forest-700 text-gold-400 font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-full bg-forest-800 hover:bg-forest-700 text-gold-400 font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading ? (
               <>
@@ -151,30 +120,10 @@ export default function Login() {
                 <span>Signing In...</span>
               </>
             ) : (
-              <span>
-                {selectedRole === 'cashier'
-                  ? 'Sign In to Cashier Register'
-                  : 'Sign In to Admin Dashboard'}
-              </span>
+              <span>Sign In</span>
             )}
           </button>
         </form>
-
-        <div className="p-3.5 rounded-xl bg-forest-50 border border-forest-100 text-[11px] text-forest-900 space-y-1.5">
-          <p className="font-bold">Staff Access Credentials:</p>
-          <div className="space-y-1 text-stone-700">
-            <p>
-              • <strong className="text-forest-900">Cashier POS:</strong>{' '}
-              <span className="font-mono">cashier@northernflavors.ng</span> /{' '}
-              <span className="font-mono">cashier123</span>
-            </p>
-            <p>
-              • <strong className="text-forest-900">Super Admin:</strong>{' '}
-              <span className="font-mono">admin@northernflavors.ng</span> /{' '}
-              <span className="font-mono">admin123</span>
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );

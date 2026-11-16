@@ -68,7 +68,7 @@ export const authService = {
 
     return {
       user: null,
-      error: new Error('Invalid login credentials. Use admin@northernflavors.ng / admin123 or cashier@northernflavors.ng / cashier123.'),
+      error: new Error('Invalid email or password. Please verify your staff credentials.'),
     };
   },
 

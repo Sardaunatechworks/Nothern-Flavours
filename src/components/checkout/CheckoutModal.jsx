@@ -13,9 +13,7 @@ export default function CheckoutModal({ onClose, onSuccess }) {
   const [fieldErrors, setFieldErrors] = useState({});
   const [orderConfirmation, setOrderConfirmation] = useState(null);
 
-  const [baseDeliveryFee, setBaseDeliveryFee] = useState(1000);
-  const [deliveryZones, setDeliveryZones] = useState([]);
-  const [selectedZoneId, setSelectedZoneId] = useState('');
+  const [baseDeliveryFee, setBaseDeliveryFee] = useState(300);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -28,19 +26,9 @@ export default function CheckoutModal({ onClose, onSuccess }) {
   useEffect(() => {
     async function loadDeliveryConfig() {
       try {
-        const [settings, zones] = await Promise.all([
-          menuService.getRestaurantSettings(),
-          menuService.getDeliveryZones(),
-        ]);
+        const settings = await menuService.getRestaurantSettings();
         if (settings?.default_delivery_fee != null) {
           setBaseDeliveryFee(Number(settings.default_delivery_fee));
-        }
-        if (zones && zones.length > 0) {
-          const activeZones = zones.filter((z) => z.is_active);
-          setDeliveryZones(activeZones);
-          if (activeZones.length > 0) {
-            setSelectedZoneId(activeZones[0].id);
-          }
         }
       } catch (e) {
         console.error('Error loading delivery settings', e);
@@ -50,14 +38,7 @@ export default function CheckoutModal({ onClose, onSuccess }) {
     loadDeliveryConfig();
   }, []);
 
-  const selectedZone = deliveryZones.find((z) => z.id === selectedZoneId);
-  const deliveryFee =
-    formData.orderType === 'delivery'
-      ? selectedZone
-        ? Number(selectedZone.delivery_fee)
-        : baseDeliveryFee
-      : 0;
-
+  const deliveryFee = formData.orderType === 'delivery' ? (baseDeliveryFee || 300) : 0;
   const grandTotal = subtotal + deliveryFee;
 
   const handleChange = (e) => {
@@ -298,26 +279,6 @@ export default function CheckoutModal({ onClose, onSuccess }) {
                 </div>
               </div>
 
-              {/* Delivery Zone Selection (if delivery) */}
-              {formData.orderType === 'delivery' && deliveryZones.length > 0 && (
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-stone-700">
-                    Delivery Neighbourhood / Area <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={selectedZoneId}
-                    onChange={(e) => setSelectedZoneId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs font-bold text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-800 bg-white"
-                  >
-                    {deliveryZones.map((z) => (
-                      <option key={z.id} value={z.id}>
-                        {z.name} — {formatNaira(z.delivery_fee)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               {/* Delivery Address (only if delivery) */}
               {formData.orderType === 'delivery' && (
                 <div className="space-y-1">
@@ -354,16 +315,27 @@ export default function CheckoutModal({ onClose, onSuccess }) {
               </div>
 
               {/* Summary line */}
-              <div className="p-4 rounded-xl bg-cream-100 border border-stone-200 space-y-1">
+              <div className="p-4 rounded-xl bg-cream-100 border border-stone-200 space-y-1.5">
                 <div className="flex justify-between text-xs text-stone-600">
                   <span>Subtotal</span>
-                  <span>{formatNaira(subtotal)}</span>
+                  <span className="font-semibold text-stone-800">{formatNaira(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-xs text-stone-600">
-                  <span>Delivery Fee</span>
-                  <span>{formatNaira(deliveryFee)}</span>
-                </div>
-                <div className="flex justify-between text-sm font-bold text-forest-950 pt-1 border-t border-stone-300">
+                {formData.orderType === 'delivery' && (
+                  <div className="flex justify-between text-xs text-stone-600">
+                    <div>
+                      <span className="font-semibold text-stone-800">Delivery Fee</span>
+                      <span className="text-[10px] text-stone-500 block">Standard delivery charge across Dutse</span>
+                    </div>
+                    <span className="font-semibold text-stone-800">{formatNaira(deliveryFee)}</span>
+                  </div>
+                )}
+                {formData.orderType === 'pickup' && (
+                  <div className="flex justify-between text-xs text-stone-600">
+                    <span>Pickup Fee</span>
+                    <span className="font-semibold text-emerald-700">Free</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold text-forest-950 pt-2 border-t border-stone-300">
                   <span>Total Amount</span>
                   <span>{formatNaira(grandTotal)}</span>
                 </div>
