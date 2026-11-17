@@ -2,7 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { menuService } from '../../services/menuService';
 import { supabase, isSupabaseConfigured } from '../../services/supabase';
 import { formatNaira } from '../../utils/formatters';
-import { Plus, Search, Edit2, Trash2, Eye, EyeOff, Boxes, AlertCircle } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Eye,
+  EyeOff,
+  Boxes,
+  AlertCircle,
+  UploadCloud,
+  Link as LinkIcon,
+  Loader2,
+  X,
+  Check,
+  Image as ImageIcon,
+} from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function Products() {
@@ -13,6 +28,14 @@ export default function Products() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [editingProduct, setEditingProduct] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Local Image Upload States
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -45,6 +68,78 @@ export default function Products() {
     setProducts(products.map((p) => (p.id === product.id ? { ...p, is_available: newStatus } : p)));
   };
 
+  const handleOpenAddModal = () => {
+    setEditingProduct(null);
+    setSelectedFile(null);
+    setImagePreview(null);
+    setUrlInput('');
+    setShowUrlInput(false);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (product) => {
+    setEditingProduct(product);
+    setSelectedFile(null);
+    setImagePreview(product.image_url || null);
+    setUrlInput(product.image_url || '');
+    setShowUrlInput(false);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingProduct(null);
+    setSelectedFile(null);
+    setImagePreview(null);
+    setUrlInput('');
+    setShowUrlInput(false);
+    setIsUploading(false);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      Swal.fire('Invalid File', 'Please select a valid image file (PNG, JPG, WebP, AVIF).', 'warning');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      Swal.fire('File Too Large', 'Please select an image smaller than 5MB.', 'warning');
+      return;
+    }
+
+    setSelectedFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleDropFile = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      Swal.fire('Invalid File', 'Please drop a valid image file (PNG, JPG, WebP, AVIF).', 'warning');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      Swal.fire('File Too Large', 'Please drop an image smaller than 5MB.', 'warning');
+      return;
+    }
+
+    setSelectedFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null);
+    setImagePreview(null);
+    setUrlInput('');
+  };
+
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -58,8 +153,6 @@ export default function Products() {
     const sku = rawSku.length > 0 ? rawSku : null;
     const rawCategory = (formData.get('category_id') || '').trim();
     const category_id = rawCategory.length > 0 ? rawCategory : null;
-    const rawImageUrl = (formData.get('image_url') || '').trim();
-    const image_url = rawImageUrl.length > 0 ? rawImageUrl : null;
     const rawDesc = (formData.get('description') || '').trim();
     const description = rawDesc.length > 0 ? rawDesc : null;
 
@@ -69,10 +162,46 @@ export default function Products() {
       .replace(/(^-|-$)+/g, '') || 'product';
 
     try {
+      setIsUploading(true);
+
+      // 1. Handle Image: Local file upload to Supabase Storage or external link
+      let finalImageUrl = editingProduct?.image_url || null;
+
+      if (selectedFile) {
+        if (isSupabaseConfigured && supabase) {
+          const fileExt = selectedFile.name.split('.').pop().toLowerCase();
+          const cleanExt = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif'].includes(fileExt) ? fileExt : 'jpg';
+          const cleanName = `menu-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${cleanExt}`;
+          const filePath = `products/${cleanName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('food-images')
+            .upload(filePath, selectedFile, {
+              cacheControl: '31536000',
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.error('Storage upload error:', uploadError);
+            throw new Error(`Failed to upload image to storage: ${uploadError.message}. Ensure migration 033 has been applied.`);
+          }
+
+          const { data: publicUrlData } = supabase.storage
+            .from('food-images')
+            .getPublicUrl(filePath);
+
+          finalImageUrl = publicUrlData.publicUrl;
+        }
+      } else if (urlInput && urlInput.trim()) {
+        finalImageUrl = urlInput.trim();
+      } else if (!imagePreview) {
+        finalImageUrl = null;
+      }
+
       let finalSlug = editingProduct?.slug || baseSlug;
 
       if (isSupabaseConfigured && supabase) {
-        // 1. Pre-check SKU uniqueness if SKU was provided
+        // 2. Pre-check SKU uniqueness if SKU was provided
         if (sku) {
           let skuCheck = supabase
             .from('products')
@@ -89,11 +218,12 @@ export default function Products() {
               text: `The SKU "${sku}" is already used by "${existingSku.name}". Please enter a different SKU or leave it blank.`,
               icon: 'warning',
             });
+            setIsUploading(false);
             return;
           }
         }
 
-        // 2. Ensure Slug is collision-free
+        // 3. Ensure Slug is collision-free
         if (!editingProduct?.id || editingProduct.name !== rawName) {
           let candidate = baseSlug;
           let counter = 1;
@@ -133,7 +263,7 @@ export default function Products() {
         is_available: formData.get('is_available') === 'on',
         is_featured: formData.get('is_featured') === 'on',
         is_favourite: formData.get('is_favourite') === 'on',
-        image_url,
+        image_url: finalImageUrl,
       };
 
       if (isSupabaseConfigured && supabase) {
@@ -159,8 +289,7 @@ export default function Products() {
         showConfirmButton: false,
       });
 
-      setIsModalOpen(false);
-      setEditingProduct(null);
+      handleCloseModal();
       fetchData();
     } catch (err) {
       console.error('Error saving product:', err);
@@ -175,6 +304,8 @@ export default function Products() {
         }
       }
       Swal.fire('Error Saving Product', userMsg, 'error');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -223,10 +354,7 @@ export default function Products() {
         </div>
 
         <button
-          onClick={() => {
-            setEditingProduct(null);
-            setIsModalOpen(true);
-          }}
+          onClick={handleOpenAddModal}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-forest-800 text-gold-400 font-bold text-xs shadow hover:bg-forest-700 transition-colors"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -340,10 +468,7 @@ export default function Products() {
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => {
-                              setEditingProduct(prod);
-                              setIsModalOpen(true);
-                            }}
+                            onClick={() => handleOpenEditModal(prod)}
                             className="p-1.5 rounded-lg bg-stone-100 hover:bg-forest-800 hover:text-white transition-colors"
                             title="Edit Product"
                           >
@@ -376,13 +501,11 @@ export default function Products() {
                 {editingProduct ? 'Edit Menu Product' : 'Add New Menu Product'}
               </h3>
               <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setEditingProduct(null);
-                }}
-                className="text-stone-400 hover:text-stone-700"
+                type="button"
+                onClick={handleCloseModal}
+                className="text-stone-400 hover:text-stone-700 p-1 rounded-lg"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -478,15 +601,114 @@ export default function Products() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="font-bold text-stone-700">Image URL</label>
-                <input
-                  type="url"
-                  name="image_url"
-                  defaultValue={editingProduct?.image_url || ''}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-forest-800"
-                />
+              {/* Menu Item Image Upload */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-stone-700">Dish Photo</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowUrlInput(!showUrlInput)}
+                    className="text-[11px] text-forest-700 hover:text-forest-900 font-semibold inline-flex items-center gap-1 transition-colors"
+                  >
+                    <LinkIcon className="w-3 h-3" />
+                    <span>{showUrlInput ? 'Hide link input' : 'Or paste web link'}</span>
+                  </button>
+                </div>
+
+                {imagePreview ? (
+                  <div className="relative group rounded-2xl border-2 border-dashed border-stone-200 overflow-hidden bg-stone-50 p-2">
+                    <div className="relative h-44 w-full rounded-xl overflow-hidden bg-stone-900/5 flex items-center justify-center">
+                      <img
+                        src={imagePreview}
+                        alt="Product preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-stone-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-white/95 hover:bg-white text-stone-800 text-xs font-bold inline-flex items-center gap-1.5 shadow">
+                          <UploadCloud className="w-4 h-4 text-forest-800" />
+                          <span>Change Photo</span>
+                          <input
+                            type="file"
+                            accept="image/png, image/jpeg, image/jpg, image/webp, image/avif"
+                            className="hidden"
+                            onChange={handleFileSelect}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Remove</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-2 px-1 text-[11px] text-stone-500">
+                      <span className="truncate max-w-[200px]">
+                        {selectedFile ? selectedFile.name : (editingProduct ? 'Current dish photo' : 'Image ready')}
+                      </span>
+                      {selectedFile && (
+                        <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDropFile}
+                    className={`relative border-2 border-dashed rounded-2xl p-5 text-center transition-all ${
+                      isDragging
+                        ? 'border-forest-600 bg-forest-50/50'
+                        : 'border-stone-300 hover:border-forest-500 bg-stone-50/50 hover:bg-forest-50/20'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      id="product-photo-upload"
+                      accept="image/png, image/jpeg, image/jpg, image/webp, image/avif"
+                      className="hidden"
+                      onChange={handleFileSelect}
+                    />
+                    <label htmlFor="product-photo-upload" className="cursor-pointer block space-y-2">
+                      <div className="w-12 h-12 mx-auto rounded-full bg-forest-100 text-forest-800 flex items-center justify-center shadow-sm">
+                        <UploadCloud className="w-6 h-6 stroke-[2]" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-forest-950">
+                          Click to upload or drag & drop photo from your computer
+                        </p>
+                        <p className="text-[11px] text-stone-400 mt-0.5">
+                          PNG, JPG, WebP, AVIF (Max 5MB)
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+                {showUrlInput && (
+                  <div className="pt-1">
+                    <input
+                      type="url"
+                      value={urlInput}
+                      onChange={(e) => {
+                        setUrlInput(e.target.value);
+                        if (e.target.value.trim()) {
+                          setImagePreview(e.target.value.trim());
+                          setSelectedFile(null);
+                        }
+                      }}
+                      placeholder="https://example.com/photo.jpg"
+                      className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-forest-800 text-xs"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -538,14 +760,23 @@ export default function Products() {
               <div className="pt-3 flex gap-3">
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-forest-800 hover:bg-forest-700 text-gold-400 font-bold rounded-xl shadow"
+                  disabled={isUploading}
+                  className="flex-1 py-2.5 bg-forest-800 hover:bg-forest-700 text-gold-400 font-bold rounded-xl shadow flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                 >
-                  Save Product
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-gold-400" />
+                      <span>Uploading & Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Product</span>
+                  )}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 bg-stone-200 text-stone-700 font-bold rounded-xl"
+                  disabled={isUploading}
+                  onClick={handleCloseModal}
+                  className="px-5 py-2.5 bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold rounded-xl transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>

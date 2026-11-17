@@ -39,3 +39,4 @@ ON public.products(sku)
 WHERE deleted_at IS NULL AND sku IS NOT NULL;
 
 COMMIT;
+
