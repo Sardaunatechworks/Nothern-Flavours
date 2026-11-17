@@ -63,7 +63,7 @@ BEGIN
     -- Encrypt password
     v_encrypted_pw := crypt(p_password, gen_salt('bf'));
 
-    -- Insert into auth.users
+    -- Insert into auth.users (ensure all token string columns are '' instead of NULL to prevent GoTrue 500 scan crashes)
     INSERT INTO auth.users (
         instance_id,
         id,
@@ -75,7 +75,15 @@ BEGIN
         raw_app_meta_data,
         raw_user_meta_data,
         created_at,
-        updated_at
+        updated_at,
+        confirmation_token,
+        recovery_token,
+        email_change,
+        email_change_token_new,
+        email_change_token_current,
+        phone_change,
+        phone_change_token,
+        reauthentication_token
     ) VALUES (
         '00000000-0000-0000-0000-000000000000',
         v_new_user_id,
@@ -87,7 +95,8 @@ BEGIN
         '{"provider":"email","providers":["email"]}'::jsonb,
         jsonb_build_object('full_name', p_full_name, 'role', v_clean_role),
         timezone('utc'::text, now()),
-        timezone('utc'::text, now())
+        timezone('utc'::text, now()),
+        '', '', '', '', '', '', '', ''
     );
 
     -- Insert into auth.identities
@@ -311,3 +320,4 @@ GRANT EXECUTE ON FUNCTION public.admin_delete_staff_member(UUID) TO authenticate
 GRANT EXECUTE ON FUNCTION public.complete_first_time_password_change(TEXT) TO authenticated;
 
 COMMIT;
+
