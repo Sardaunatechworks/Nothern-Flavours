@@ -131,3 +131,4 @@ export default function UpdatePasswordModal({ isOpen, onClose }) {
     </div>
   );
 }
+

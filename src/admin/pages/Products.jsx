@@ -48,32 +48,106 @@ export default function Products() {
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const productPayload = {
-      name: formData.get('name'),
-      slug: formData.get('name').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
-      description: formData.get('description'),
-      category_id: formData.get('category_id'),
-      price: parseFloat(formData.get('price')),
-      cost_price: formData.get('cost_price') ? parseFloat(formData.get('cost_price')) : null,
-      sku: formData.get('sku'),
-      stock_quantity: parseInt(formData.get('stock_quantity') || '0', 10),
-      low_stock_threshold: parseInt(formData.get('low_stock_threshold') || '5', 10),
-      track_stock: formData.get('track_stock') === 'on',
-      is_available: formData.get('is_available') === 'on',
-      is_featured: formData.get('is_featured') === 'on',
-      is_favourite: formData.get('is_favourite') === 'on',
-      image_url: formData.get('image_url'),
-    };
+    const rawName = (formData.get('name') || '').trim();
+    if (!rawName) {
+      Swal.fire('Required Field', 'Please enter a product name.', 'warning');
+      return;
+    }
+
+    const rawSku = (formData.get('sku') || '').trim();
+    const sku = rawSku.length > 0 ? rawSku : null;
+    const rawCategory = (formData.get('category_id') || '').trim();
+    const category_id = rawCategory.length > 0 ? rawCategory : null;
+    const rawImageUrl = (formData.get('image_url') || '').trim();
+    const image_url = rawImageUrl.length > 0 ? rawImageUrl : null;
+    const rawDesc = (formData.get('description') || '').trim();
+    const description = rawDesc.length > 0 ? rawDesc : null;
+
+    const baseSlug = rawName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '') || 'product';
 
     try {
+      let finalSlug = editingProduct?.slug || baseSlug;
+
+      if (isSupabaseConfigured && supabase) {
+        // 1. Pre-check SKU uniqueness if SKU was provided
+        if (sku) {
+          let skuCheck = supabase
+            .from('products')
+            .select('id, name')
+            .eq('sku', sku)
+            .is('deleted_at', null);
+          if (editingProduct?.id) {
+            skuCheck = skuCheck.neq('id', editingProduct.id);
+          }
+          const { data: existingSku } = await skuCheck.maybeSingle();
+          if (existingSku) {
+            Swal.fire({
+              title: 'Duplicate SKU Code',
+              text: `The SKU "${sku}" is already used by "${existingSku.name}". Please enter a different SKU or leave it blank.`,
+              icon: 'warning',
+            });
+            return;
+          }
+        }
+
+        // 2. Ensure Slug is collision-free
+        if (!editingProduct?.id || editingProduct.name !== rawName) {
+          let candidate = baseSlug;
+          let counter = 1;
+          let isUnique = false;
+
+          while (!isUnique && counter <= 25) {
+            let slugCheck = supabase
+              .from('products')
+              .select('id')
+              .eq('slug', candidate);
+            if (editingProduct?.id) {
+              slugCheck = slugCheck.neq('id', editingProduct.id);
+            }
+            const { data: slugMatch } = await slugCheck.maybeSingle();
+            if (!slugMatch) {
+              isUnique = true;
+            } else {
+              candidate = `${baseSlug}-${counter}`;
+              counter++;
+            }
+          }
+          finalSlug = isUnique ? candidate : `${baseSlug}-${Date.now().toString(36)}`;
+        }
+      }
+
+      const productPayload = {
+        name: rawName,
+        slug: finalSlug,
+        description,
+        category_id,
+        price: parseFloat(formData.get('price')) || 0,
+        cost_price: formData.get('cost_price') ? parseFloat(formData.get('cost_price')) : null,
+        sku,
+        stock_quantity: parseInt(formData.get('stock_quantity') || '0', 10),
+        low_stock_threshold: parseInt(formData.get('low_stock_threshold') || '5', 10),
+        track_stock: formData.get('track_stock') === 'on',
+        is_available: formData.get('is_available') === 'on',
+        is_featured: formData.get('is_featured') === 'on',
+        is_favourite: formData.get('is_favourite') === 'on',
+        image_url,
+      };
+
       if (isSupabaseConfigured && supabase) {
         if (editingProduct?.id) {
-          await supabase
+          const { error: updateError } = await supabase
             .from('products')
             .update(productPayload)
             .eq('id', editingProduct.id);
+          if (updateError) throw updateError;
         } else {
-          await supabase.from('products').insert(productPayload);
+          const { error: insertError } = await supabase
+            .from('products')
+            .insert([productPayload]);
+          if (insertError) throw insertError;
         }
       }
 
@@ -89,7 +163,18 @@ export default function Products() {
       setEditingProduct(null);
       fetchData();
     } catch (err) {
-      Swal.fire('Error', err.message, 'error');
+      console.error('Error saving product:', err);
+      let userMsg = err.message || 'Failed to save product.';
+      if (err.code === '23505' || err.message?.includes('duplicate key') || err.message?.includes('unique constraint')) {
+        if (err.message?.includes('sku') || err.details?.includes('sku')) {
+          userMsg = 'A product with this SKU code already exists. Please change or remove the SKU code.';
+        } else if (err.message?.includes('slug') || err.details?.includes('slug')) {
+          userMsg = 'A product with this name already exists. Please slightly modify the product name.';
+        } else {
+          userMsg = 'A unique constraint was violated. A product with these details already exists.';
+        }
+      }
+      Swal.fire('Error Saving Product', userMsg, 'error');
     }
   };
 
