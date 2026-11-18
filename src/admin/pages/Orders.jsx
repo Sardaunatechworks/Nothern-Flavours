@@ -164,6 +164,23 @@ export default function Orders() {
     { label: 'Cancelled', value: 'cancelled' },
   ];
 
+  const handlePrintReceipt = async () => {
+    try {
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+    document.body.classList.add('printing-receipt');
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-receipt');
+      }, 500);
+    }, 100);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -490,61 +507,80 @@ export default function Orders() {
 
       {/* Printable Thermal Receipt Modal */}
       {receiptOrder && (
-        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 border border-stone-200 shadow-2xl">
-            <div className="text-center border-b pb-4 space-y-1">
-              <h3 className="font-serif text-lg font-bold">NORTHERN FLAVOURS</h3>
-              <p className="text-[11px] text-stone-500">Gajambe Plaza, Yalwawa, Dutse</p>
-              <p className="text-[11px] text-stone-500">Phone: 09068202567</p>
-              <p className="text-xs font-mono font-bold pt-2">{receiptOrder.order_number}</p>
-              <p className="text-[10px] text-stone-400">{formatDateLagos(receiptOrder.created_at)}</p>
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-transparent print:static">
+          <div className="receipt-print-area bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 border border-stone-200 shadow-2xl print:border-none print:shadow-none print:p-2 text-black font-sans">
+            <div className="text-center border-b border-dashed border-black pb-3 space-y-1">
+              <img
+                src="/logo-thermal.png"
+                alt="Northern Flavors Logo"
+                className="receipt-logo w-14 h-14 mx-auto object-contain mb-1"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = '/logo.png';
+                }}
+              />
+              <h3 className="font-sans font-black text-base text-black uppercase">NORTHERN FLAVORS</h3>
+              <p className="text-[10px] font-bold text-black uppercase">Restaurant & Grills</p>
+              <p className="text-[10px] font-semibold text-black">Gajambe Plaza, Yalwawa, Dutse, Jigawa State</p>
+              <p className="text-[10px] font-bold text-black">Hotline: 0906 820 2567</p>
+              <p className="text-[10px] font-bold text-black">Tel: 0813 139 3402 | 0904 353 8768</p>
+              <p className="text-xs font-mono font-bold pt-1 text-black">{receiptOrder.order_number}</p>
+              <p className="text-[10px] text-black">{formatDateLagos(receiptOrder.created_at)}</p>
             </div>
 
-            <div className="space-y-1 text-xs border-b pb-3">
+            <div className="space-y-1 text-xs border-b border-dashed border-black pb-3 text-black font-semibold">
               <div className="flex justify-between">
                 <span>Customer:</span>
-                <span className="font-bold">{receiptOrder.customer?.full_name || 'Customer'}</span>
+                <span className="font-bold">{receiptOrder.customer?.full_name || 'Walk-in Customer'}</span>
               </div>
               <div className="flex justify-between">
                 <span>Type:</span>
-                <span className="capitalize">{receiptOrder.order_type}</span>
+                <span className="capitalize font-bold">{receiptOrder.order_type}</span>
               </div>
             </div>
 
-            <div className="space-y-2 border-b pb-3 text-xs">
+            <div className="space-y-1.5 border-b border-dashed border-black pb-3 text-xs text-black">
               {receiptOrder.order_items?.map((item, idx) => (
-                <div key={idx} className="flex justify-between">
-                  <span>{item.quantity}x {item.product_name}</span>
-                  <span>{formatNaira(item.line_total)}</span>
+                <div key={idx} className="flex justify-between items-start font-semibold">
+                  <span className="flex-1 pr-1 break-words">{item.quantity}x {item.product_name}</span>
+                  <span className="font-bold whitespace-nowrap">{formatNaira(item.line_total)}</span>
                 </div>
               ))}
             </div>
 
-            <div className="space-y-1 text-xs">
+            <div className="space-y-1 text-xs text-black font-semibold">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span>{formatNaira(receiptOrder.subtotal)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Delivery:</span>
-                <span>{formatNaira(receiptOrder.delivery_fee)}</span>
-              </div>
-              <div className="flex justify-between font-bold text-sm pt-1 border-t">
+              {receiptOrder.delivery_fee > 0 && (
+                <div className="flex justify-between">
+                  <span>Delivery:</span>
+                  <span>{formatNaira(receiptOrder.delivery_fee)}</span>
+                </div>
+              )}
+              {receiptOrder.packaging_fee > 0 && (
+                <div className="flex justify-between">
+                  <span>Takeaway Packaging:</span>
+                  <span>{formatNaira(receiptOrder.packaging_fee)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-black text-sm pt-1 border-t border-solid border-black">
                 <span>Total:</span>
-                <span>{formatNaira(receiptOrder.total)}</span>
+                <span className="text-base font-black">{formatNaira(receiptOrder.total)}</span>
               </div>
             </div>
 
-            <div className="pt-2 flex gap-2">
+            <div className="pt-2 flex gap-2 no-print">
               <button
-                onClick={() => window.print()}
-                className="flex-1 py-2 bg-forest-800 text-gold-400 rounded-xl text-xs font-bold"
+                onClick={handlePrintReceipt}
+                className="flex-1 py-2 bg-forest-800 text-gold-400 rounded-xl text-xs font-bold hover:bg-forest-900 transition-colors"
               >
                 Print Receipt
               </button>
               <button
                 onClick={() => setReceiptOrder(null)}
-                className="px-4 py-2 bg-stone-200 text-stone-700 rounded-xl text-xs font-bold"
+                className="px-4 py-2 bg-stone-200 text-stone-700 rounded-xl text-xs font-bold hover:bg-stone-300 transition-colors"
               >
                 Close
               </button>

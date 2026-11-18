@@ -35,11 +35,19 @@ export default function Footer() {
             <MapPin className="w-4 h-4 text-gold-500 shrink-0 mt-0.5" />
             <span>Gajambe Plaza, Yalwawa, Dutse, Jigawa State, Nigeria</span>
           </div>
-          <div className="flex items-center gap-2.5 text-sm text-stone-300">
-            <Phone className="w-4 h-4 text-gold-500 shrink-0" />
-            <a href="tel:09068202567" className="hover:text-gold-400 transition-colors">
-              09068202567
-            </a>
+          <div className="flex items-start gap-2.5 text-sm text-stone-300">
+            <Phone className="w-4 h-4 text-gold-500 shrink-0 mt-0.5" />
+            <div className="flex flex-col space-y-1">
+              <a href="tel:09068202567" className="hover:text-gold-400 transition-colors">
+                0906 820 2567
+              </a>
+              <a href="tel:08131393402" className="hover:text-gold-400 transition-colors">
+                0813 139 3402
+              </a>
+              <a href="tel:09043538768" className="hover:text-gold-400 transition-colors">
+                0904 353 8768
+              </a>
+            </div>
           </div>
           <div className="flex items-center gap-2.5 text-sm text-stone-300">
             <MessageCircle className="w-4 h-4 text-gold-500 shrink-0" />
@@ -49,7 +57,7 @@ export default function Footer() {
               rel="noopener noreferrer"
               className="hover:text-gold-400 transition-colors"
             >
-              WhatsApp: 09068202567
+              WhatsApp: 0906 820 2567
             </a>
           </div>
         </div>

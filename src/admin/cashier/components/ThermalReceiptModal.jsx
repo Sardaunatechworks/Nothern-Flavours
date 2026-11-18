@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Printer, RefreshCw, X, Check, Copy, FileText, ShoppingBag } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Printer, RefreshCw, X, Check, Copy, ShoppingBag } from 'lucide-react';
 import { cashierService } from '../services/cashierService';
 
 export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onReprintSuccess }) {
@@ -7,6 +7,18 @@ export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onRep
   const [reprinting, setReprinting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reprintCount, setReprintCount] = useState(receipt?.reprint_count || 0);
+
+  // Clean up printing classes if print dialog finishes or is cancelled
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      document.body.classList.remove('printing-receipt', 'printing-a4');
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('afterprint', handleAfterPrint);
+      document.body.classList.remove('printing-receipt', 'printing-a4');
+    };
+  }, []);
 
   if (!receipt) return null;
 
@@ -22,8 +34,49 @@ export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onRep
   const subtotal = Number(order.subtotal || 0);
   const total = Number(order.total_amount || 0);
 
+  /**
+   * Waits for fonts and images in receipt-print-area to fully load,
+   * sets the targeted printing class, and invokes Chrome's print dialog.
+   */
+  const triggerPrint = async (targetFormat = format) => {
+    try {
+      // 1. Ensure web fonts are ready
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+
+      // 2. Ensure receipt logo and any images are fully loaded & decoded
+      const selector = targetFormat === 'a4' ? '.receipt-print-area-a4' : '.receipt-print-area';
+      const printContainer = document.querySelector(selector);
+      if (printContainer) {
+        const imgs = Array.from(printContainer.querySelectorAll('img'));
+        await Promise.all(
+          imgs.map((img) => {
+            if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+            return new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })
+        );
+      }
+    } catch (err) {
+      console.warn('Pre-print asset verification failed:', err);
+    }
+
+    const printClass = targetFormat === 'a4' ? 'printing-a4' : 'printing-receipt';
+    document.body.classList.add(printClass);
+
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-receipt', 'printing-a4');
+      }, 500);
+    }, 100);
+  };
+
   const handlePrint = () => {
-    window.print();
+    triggerPrint(format);
   };
 
   const handleReprint = async () => {
@@ -32,7 +85,7 @@ export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onRep
       const res = await cashierService.reprintReceipt(receipt.id);
       setReprintCount(res.reprint_count);
       if (onReprintSuccess) onReprintSuccess(res);
-      window.print();
+      await triggerPrint(format);
     } catch (err) {
       alert('Failed to log reprint: ' + err.message);
     } finally {
@@ -44,24 +97,26 @@ export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onRep
     const text = `
 ================================
      NORTHERN FLAVORS RESTAURANT
-  Gajambe Plaza, Dutse, Jigawa
-      Tel: +234 906 820 2567
+  Gajambe Plaza, Yalwawa, Dutse
+  Tel: 0906 820 2567 | 0813 139 3402
+       Tel: 0904 353 8768
 ================================
-Receipt: ${receipt.receipt_number}
+Receipt No: ${receipt.receipt_number}
 Order Ref: ${order.order_number || receipt.metadata?.order_number || 'N/A'}
-Type: ${orderType.toUpperCase()}
+Order Type: ${orderType.toUpperCase()}
 Date: ${new Date(receipt.issued_at).toLocaleString()}
 Cashier: ${cashierName}
 Customer: ${customerName}
---------------------------------
+${reprintCount > 0 ? `*** REPRINT COPY #${reprintCount} ***\n` : ''}--------------------------------
 ITEMS:
 ${items.map((it) => `${it.product_name || 'Item'} x${it.quantity} @ ₦${Number(it.unit_price).toLocaleString()} = ₦${Number(it.line_total).toLocaleString()}`).join('\n')}
 --------------------------------
 Subtotal: ₦${subtotal.toLocaleString()}
-${packagingFee > 0 ? `Takeaway Packaging: ₦${packagingFee.toLocaleString()}\n` : ''}${deliveryFee > 0 ? `Delivery Fee: ₦${deliveryFee.toLocaleString()}\n` : ''}${discountAmount > 0 ? `Discount: -₦${discountAmount.toLocaleString()}\n` : ''}TOTAL: ₦${total.toLocaleString()}
+${packagingFee > 0 ? `Takeaway Packaging: ₦${packagingFee.toLocaleString()}\n` : ''}${deliveryFee > 0 ? `Delivery Fee: ₦${deliveryFee.toLocaleString()}\n` : ''}${discountAmount > 0 ? `Discount: -₦${discountAmount.toLocaleString()}\n` : ''}TOTAL PAYABLE: ₦${total.toLocaleString()}
 Paid: ₦${Number(payment.amount || order.amount_paid || total).toLocaleString()} (${payment.payment_method?.toUpperCase() || 'PAID'})
-${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLocaleString()}\n` : ''}${payment.change_due > 0 ? `Change: ₦${Number(payment.change_due).toLocaleString()}\n` : ''}================================
+${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLocaleString()}\n` : ''}${payment.change_due > 0 ? `Change Due: ₦${Number(payment.change_due).toLocaleString()}\n` : ''}${payment.transaction_reference ? `Ref: ${payment.transaction_reference}\n` : ''}================================
   Thank you for dining with us!
+  Authentic Taste • Quality Meals
 ================================
     `.trim();
 
@@ -71,15 +126,15 @@ ${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm print:p-0 print:bg-white print:fixed">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm print:p-0 print:bg-transparent print:static">
       {/* Container */}
       <div
-        className={`bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[94vh] print:max-h-none print:shadow-none print:w-full ${
+        className={`bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[94vh] print:max-h-none print:shadow-none print:w-auto print:rounded-none ${
           format === 'a4' ? 'max-w-2xl w-full' : 'max-w-md w-full'
         }`}
       >
         {/* Header bar (hidden when printing) */}
-        <div className="px-6 py-4 bg-forest-900 text-white flex items-center justify-between print:hidden">
+        <div className="px-6 py-4 bg-forest-900 text-white flex items-center justify-between no-print">
           <div className="flex items-center gap-2">
             <Printer className="w-5 h-5 text-gold-400" />
             <h3 className="font-serif font-bold text-sm">Receipt Confirmation</h3>
@@ -114,7 +169,7 @@ ${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLo
         </div>
 
         {/* Action Controls (hidden when printing) */}
-        <div className="p-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between gap-2 print:hidden">
+        <div className="p-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between gap-2 no-print">
           {/* Primary Action 1: Print Receipt */}
           <button
             onClick={handlePrint}
@@ -163,78 +218,86 @@ ${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLo
         </div>
 
         {/* Printable Receipt Body */}
-        <div className="p-6 overflow-y-auto leading-tight print:p-0">
+        <div className="p-6 overflow-y-auto leading-tight print:p-0 print:overflow-visible">
           {format === 'thermal' ? (
-            /* ================= 80MM THERMAL SLIP FORMAT ================= */
-            <div className="max-w-[340px] mx-auto font-mono text-xs text-stone-900 space-y-4 print:p-0 print:text-[11px]">
+            /* ================= 80MM THERMAL SLIP FORMAT (Xprinter XP-80C) ================= */
+            <div className="receipt-print-area max-w-[340px] mx-auto text-black font-sans text-xs space-y-3 bg-white p-2">
               {/* Restaurant Masthead */}
               <div className="text-center space-y-1">
                 <img
-                  src="/logo.png"
+                  src="/logo-thermal.png"
                   alt="Northern Flavors Logo"
-                  className="w-12 h-12 mx-auto rounded-full object-cover border border-stone-200 mb-1"
+                  className="receipt-logo w-14 h-14 mx-auto object-contain mb-1"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/logo.png';
+                  }}
                 />
-                <h2 className="font-serif font-black text-lg tracking-tight text-forest-950 uppercase">
-                  Northern Flavors
+                <h2 className="font-sans font-black text-base tracking-tight text-black uppercase">
+                  NORTHERN FLAVORS
                 </h2>
-                <p className="text-[10px] text-stone-600">Restaurant & Grills V3.0</p>
-                <p className="text-[10px] text-stone-600">
+                <p className="text-[10px] font-bold text-black uppercase tracking-wider">
+                  Restaurant & Grills
+                </p>
+                <p className="text-[10px] font-semibold text-black leading-tight">
                   Gajambe Plaza, Yalwawa, Dutse, Jigawa State
                 </p>
-                <p className="text-[10px] text-stone-600">Hotline: 0906 820 2567</p>
+                <div className="text-[10px] font-bold text-black space-y-0.5 pt-0.5">
+                  <p>Hotline: 0906 820 2567</p>
+                  <p>Tel: 0813 139 3402 | 0904 353 8768</p>
+                </div>
               </div>
 
               {/* Order Meta */}
-              <div className="border-t border-dashed border-stone-300 pt-2 space-y-1">
+              <div className="border-t border-dashed border-black pt-2 space-y-1 text-[11px] font-semibold text-black">
                 <div className="flex justify-between">
-                  <span className="text-stone-500">Receipt No:</span>
-                  <span className="font-bold">{receipt.receipt_number}</span>
+                  <span>Receipt No:</span>
+                  <span className="font-mono font-bold">{receipt.receipt_number}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-stone-500">Order No:</span>
-                  <span className="font-bold">{order.order_number || receipt.metadata?.order_number || 'N/A'}</span>
+                  <span>Order Ref:</span>
+                  <span className="font-mono font-bold">{order.order_number || receipt.metadata?.order_number || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-stone-500">Order Type:</span>
-                  <span className="font-bold uppercase text-forest-900">{orderType}</span>
+                  <span>Order Type:</span>
+                  <span className="font-bold uppercase">{orderType}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-stone-500">Date:</span>
+                  <span>Date:</span>
                   <span>{new Date(receipt.issued_at).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-stone-500">Cashier:</span>
-                  <span>{cashierName}</span>
+                  <span>Cashier:</span>
+                  <span className="font-bold">{cashierName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-stone-500">Customer:</span>
+                  <span>Customer:</span>
                   <span>{customerName}</span>
                 </div>
                 {reprintCount > 0 && (
-                  <div className="flex justify-between text-amber-700 font-bold text-[10px] uppercase">
-                    <span>Reprint Copy:</span>
-                    <span>#{reprintCount}</span>
+                  <div className="text-center font-black text-[11px] uppercase pt-1 tracking-wider">
+                    *** REPRINT COPY #{reprintCount} ***
                   </div>
                 )}
               </div>
 
               {/* Line Items */}
-              <div className="border-t border-dashed border-stone-300 pt-2">
-                <div className="flex justify-between font-bold pb-1 text-[11px]">
-                  <span>Item</span>
-                  <span>Qty x Price</span>
-                  <span>Total</span>
+              <div className="border-t border-dashed border-black pt-2">
+                <div className="flex justify-between font-black pb-1 text-[11px] uppercase border-b border-solid border-black">
+                  <span className="flex-1">Item</span>
+                  <span className="w-20 text-center">Qty x Price</span>
+                  <span className="w-16 text-right">Total</span>
                 </div>
-                <div className="space-y-1.5 pt-1">
+                <div className="space-y-1.5 pt-1.5 text-[11px] font-medium text-black">
                   {items.map((item, idx) => (
                     <div key={item.id || idx} className="flex justify-between items-start">
-                      <div className="max-w-[170px] truncate">
+                      <div className="flex-1 pr-1 break-words font-semibold">
                         {item.product_name || 'Menu item'}
                       </div>
-                      <div className="text-stone-600">
+                      <div className="w-20 text-center text-[10px] whitespace-nowrap pt-0.5">
                         {item.quantity} x ₦{Number(item.unit_price).toLocaleString()}
                       </div>
-                      <div className="font-bold text-right">
+                      <div className="w-16 font-bold text-right whitespace-nowrap">
                         ₦{Number(item.line_total).toLocaleString()}
                       </div>
                     </div>
@@ -242,82 +305,82 @@ ${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLo
                 </div>
               </div>
 
-              {/* Totals & Packaging Fee */}
-              <div className="border-t border-dashed border-stone-300 pt-2 space-y-1">
-                <div className="flex justify-between text-stone-600">
+              {/* Totals & Fees */}
+              <div className="border-t border-dashed border-black pt-2 space-y-1 text-[11px] font-semibold text-black">
+                <div className="flex justify-between">
                   <span>Food Subtotal:</span>
                   <span>₦{subtotal.toLocaleString()}</span>
                 </div>
 
                 {packagingFee > 0 && (
-                  <div className="flex justify-between text-stone-800 font-medium">
+                  <div className="flex justify-between font-bold">
                     <span>Takeaway Packaging:</span>
                     <span>₦{packagingFee.toLocaleString()}</span>
                   </div>
                 )}
 
                 {deliveryFee > 0 && (
-                  <div className="flex justify-between text-stone-800 font-medium">
+                  <div className="flex justify-between font-bold">
                     <span>Delivery Charge:</span>
                     <span>₦{deliveryFee.toLocaleString()}</span>
                   </div>
                 )}
 
                 {discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-700">
+                  <div className="flex justify-between font-bold">
                     <span>Discount:</span>
                     <span>-₦{discountAmount.toLocaleString()}</span>
                   </div>
                 )}
 
-                <div className="flex justify-between font-black text-sm pt-1 border-t border-stone-200">
+                <div className="flex justify-between font-black text-sm pt-1.5 border-t border-solid border-black">
                   <span>TOTAL PAYABLE:</span>
-                  <span>₦{total.toLocaleString()}</span>
+                  <span className="text-base font-black">₦{total.toLocaleString()}</span>
                 </div>
 
-                <div className="flex justify-between text-stone-700 pt-1">
+                <div className="flex justify-between font-bold pt-1">
                   <span>Paid ({payment.payment_method?.toUpperCase() || 'PAID'}):</span>
                   <span>₦{Number(payment.amount || order.amount_paid || total).toLocaleString()}</span>
                 </div>
 
                 {payment.amount_tendered && (
-                  <div className="flex justify-between text-stone-600">
+                  <div className="flex justify-between">
                     <span>Amount Tendered:</span>
                     <span>₦{Number(payment.amount_tendered).toLocaleString()}</span>
                   </div>
                 )}
 
                 {payment.change_due > 0 && (
-                  <div className="flex justify-between font-bold text-emerald-700">
-                    <span>Change Given:</span>
+                  <div className="flex justify-between font-black">
+                    <span>Change Due:</span>
                     <span>₦{Number(payment.change_due).toLocaleString()}</span>
                   </div>
                 )}
 
                 {payment.transaction_reference && (
-                  <div className="flex justify-between text-[10px] text-stone-500">
-                    <span>Ref:</span>
-                    <span>{payment.transaction_reference}</span>
+                  <div className="flex justify-between text-[10px]">
+                    <span>Transaction Ref:</span>
+                    <span className="font-mono">{payment.transaction_reference}</span>
                   </div>
                 )}
               </div>
 
               {/* Footer */}
-              <div className="border-t border-dashed border-stone-300 pt-3 text-center space-y-1">
-                <p className="font-bold text-[11px] text-forest-950">Thank you for dining with us!</p>
-                <p className="text-[10px] text-stone-500">Authentic Taste • Quality Ingredients</p>
-                <p className="text-[9px] text-stone-400">Please keep this slip for your records</p>
+              <div className="border-t border-dashed border-black pt-2 text-center space-y-1 text-black">
+                <p className="font-bold text-[11px] uppercase tracking-wide">Thank you for dining with us!</p>
+                <p className="text-[10px] font-medium">Authentic Taste • Quality Ingredients</p>
+                <p className="text-[9px]">Please retain this slip for your records</p>
               </div>
             </div>
           ) : (
             /* ================= A4 INVOICE FORMAT ================= */
-            <div className="p-8 space-y-6 text-sm text-stone-900 font-sans">
+            <div className="receipt-print-area-a4 p-8 space-y-6 text-sm text-stone-900 font-sans">
               <div className="flex justify-between items-start border-b border-stone-200 pb-6">
                 <div className="flex items-center gap-3">
                   <img
                     src="/logo.png"
                     alt="Northern Flavors Logo"
-                    className="w-14 h-14 rounded-full object-cover border border-stone-200 shadow-sm"
+                    className="w-16 h-16 rounded-full object-cover border border-stone-200 shadow-sm"
                   />
                   <div>
                     <h1 className="font-serif font-black text-2xl text-forest-950">
@@ -325,7 +388,9 @@ ${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLo
                     </h1>
                     <p className="text-xs text-stone-500 mt-1">Authentic Northern Cuisine & Grills</p>
                     <p className="text-xs text-stone-500">Gajambe Plaza, Yalwawa, Dutse, Jigawa State</p>
-                    <p className="text-xs text-stone-500">Tel: +234 906 820 2567</p>
+                    <p className="text-xs font-semibold text-stone-700">
+                      Hotline: 0906 820 2567 | Tel: 0813 139 3402 | 0904 353 8768
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">

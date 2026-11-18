@@ -48,6 +48,8 @@ export const menuService = {
     const defaultSettings = {
       restaurant_name: 'Northern Flavours Restaurant',
       phone: '09068202567',
+      phone_secondary: '08131393402',
+      phone_tertiary: '09043538768',
       whatsapp_number: '2349068202567',
       address: 'Gajambe Plaza, Yalwawa, Dutse, Jigawa State, Nigeria',
       accepting_orders: true,

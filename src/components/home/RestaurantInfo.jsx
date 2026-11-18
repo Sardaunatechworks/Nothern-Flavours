@@ -17,8 +17,8 @@ export default function RestaurantInfo() {
     },
     {
       icon: PhoneCall,
-      title: 'Call / WhatsApp',
-      subtitle: '09068202567',
+      title: 'Telephone Inquiries',
+      subtitle: '0906 820 2567 | 0813 139 3402 | 0904 353 8768',
       action: 'tel:09068202567',
       isPhone: true,
     },

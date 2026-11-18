@@ -33,8 +33,10 @@ export default function Settings() {
 
     const updated = {
       restaurant_name: formData.get('restaurant_name'),
-      phone: formData.get('phone'),
-      whatsapp_number: formData.get('whatsapp_number'),
+      phone: formData.get('phone')?.trim() || '09068202567',
+      phone_secondary: formData.get('phone_secondary')?.trim() || '08131393402',
+      phone_tertiary: formData.get('phone_tertiary')?.trim() || '09043538768',
+      whatsapp_number: formData.get('whatsapp_number')?.trim() || '2349068202567',
       address: formData.get('address'),
       default_delivery_fee: parseFloat(formData.get('default_delivery_fee') || '1000'),
       accepting_orders: formData.get('accepting_orders') === 'on',
@@ -230,21 +232,44 @@ export default function Settings() {
             </div>
 
             <div className="space-y-1">
-              <label className="font-bold text-stone-700">Official Phone Number</label>
+              <label className="font-bold text-stone-700">Official Phone Line 1 (Main Hotline)</label>
               <input
                 type="text"
                 name="phone"
-                defaultValue={settings.phone}
+                defaultValue={settings.phone || '09068202567'}
+                placeholder="09068202567"
                 className="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-forest-800"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="font-bold text-stone-700">WhatsApp Ordering Number (International format)</label>
+              <label className="font-bold text-stone-700">Telephone Line 2 (0813 139 3402)</label>
+              <input
+                type="text"
+                name="phone_secondary"
+                defaultValue={settings.phone_secondary || '08131393402'}
+                placeholder="08131393402"
+                className="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-forest-800"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-bold text-stone-700">Telephone Line 3 (0904 353 8768)</label>
+              <input
+                type="text"
+                name="phone_tertiary"
+                defaultValue={settings.phone_tertiary || '09043538768'}
+                placeholder="09043538768"
+                className="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-forest-800"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-bold text-stone-700">WhatsApp Ordering Number (Separate WhatsApp channel)</label>
               <input
                 type="text"
                 name="whatsapp_number"
-                defaultValue={settings.whatsapp_number}
+                defaultValue={settings.whatsapp_number || '2349068202567'}
                 placeholder="2349068202567"
                 className="w-full px-3.5 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-forest-800"
               />

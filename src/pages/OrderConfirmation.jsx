@@ -31,7 +31,7 @@ export default function OrderConfirmation() {
 
           <div className="p-4 rounded-2xl bg-cream-100 border border-stone-200 text-left text-xs space-y-2 text-stone-700">
             <p>• Orders are prepared fresh upon order receipt.</p>
-            <p>• For urgent inquiries or delivery questions, reach us on 09068202567.</p>
+            <p>• For urgent inquiries or delivery questions, reach us on 0906 820 2567, 0813 139 3402, or 0904 353 8768.</p>
           </div>
 
           <div className="space-y-3 pt-2">
