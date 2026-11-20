@@ -70,9 +70,9 @@ export default function CheckoutModal({ onClose, onSuccess }) {
     setSubmitting(true);
 
     const fullAddress =
-      formData.orderType === 'delivery' && selectedZone
-        ? `[Zone: ${selectedZone.name}] ${formData.deliveryAddress}`
-        : formData.deliveryAddress;
+      formData.orderType === 'delivery'
+        ? formData.deliveryAddress?.trim()
+        : null;
 
     try {
       const result = await orderService.submitCustomerOrder({

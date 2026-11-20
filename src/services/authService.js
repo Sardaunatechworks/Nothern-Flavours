@@ -86,7 +86,12 @@ export const authService = {
   async getCurrentUser() {
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          // If stored session/refresh token is invalid, clear stale auth state
+          await supabase.auth.signOut().catch(() => {});
+          return null;
+        }
         if (session?.user) {
           const { data: profile } = await supabase
             .from('profiles')

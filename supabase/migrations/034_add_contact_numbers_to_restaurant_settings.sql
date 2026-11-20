@@ -22,3 +22,4 @@ SET
 WHERE id IS NOT NULL;
 
 COMMIT;
+
