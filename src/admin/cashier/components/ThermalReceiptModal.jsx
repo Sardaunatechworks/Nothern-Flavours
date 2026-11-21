@@ -96,27 +96,33 @@ export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onRep
   const copyReceiptText = () => {
     const text = `
 ================================
-     NORTHERN FLAVORS RESTAURANT
-  Gajambe Plaza, Yalwawa, Dutse
-  Tel: 0906 820 2567 | 0813 139 3402
-       Tel: 0904 353 8768
+        NORTHERN FLAVORS
+ Authentic Taste • Quality Meals
+ Gajambe Plaza, Yalwawa, Dutse
+ Hotline: 0906 820 2567
+ Tel: 0813 139 3402
+ Tel: 0904 353 8768
 ================================
 Receipt No: ${receipt.receipt_number}
 Order Ref: ${order.order_number || receipt.metadata?.order_number || 'N/A'}
-Order Type: ${orderType.toUpperCase()}
-Date: ${new Date(receipt.issued_at).toLocaleString()}
+Order Type: ${orderType.replace('_', ' ').toUpperCase()}
+Date & Time: ${new Date(receipt.issued_at).toLocaleString()}
 Cashier: ${cashierName}
-Customer: ${customerName}
-${reprintCount > 0 ? `*** REPRINT COPY #${reprintCount} ***\n` : ''}--------------------------------
-ITEMS:
-${items.map((it) => `${it.product_name || 'Item'} x${it.quantity} @ ₦${Number(it.unit_price).toLocaleString()} = ₦${Number(it.line_total).toLocaleString()}`).join('\n')}
+${customerName && customerName !== 'Walk-in Customer' ? `Customer: ${customerName}\n` : ''}${reprintCount > 0 ? `*** REPRINT COPY #${reprintCount} ***\n` : ''}--------------------------------
+ITEM DESCRIPTION   QTY    AMOUNT
 --------------------------------
-Subtotal: ₦${subtotal.toLocaleString()}
-${packagingFee > 0 ? `Takeaway Packaging: ₦${packagingFee.toLocaleString()}\n` : ''}${deliveryFee > 0 ? `Delivery Fee: ₦${deliveryFee.toLocaleString()}\n` : ''}${discountAmount > 0 ? `Discount: -₦${discountAmount.toLocaleString()}\n` : ''}TOTAL PAYABLE: ₦${total.toLocaleString()}
-Paid: ₦${Number(payment.amount || order.amount_paid || total).toLocaleString()} (${payment.payment_method?.toUpperCase() || 'PAID'})
-${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLocaleString()}\n` : ''}${payment.change_due > 0 ? `Change Due: ₦${Number(payment.change_due).toLocaleString()}\n` : ''}${payment.transaction_reference ? `Ref: ${payment.transaction_reference}\n` : ''}================================
+${items.map((it) => `${it.product_name || 'Item'}\n  ${it.quantity}x @ ₦${Number(it.unit_price).toLocaleString()} = ₦${Number(it.line_total).toLocaleString()}`).join('\n')}
+--------------------------------
+Item Subtotal: ₦${subtotal.toLocaleString()}
+${packagingFee > 0 ? `Takeaway Packaging: ₦${packagingFee.toLocaleString()}\n` : ''}${deliveryFee > 0 ? `Delivery Charge: ₦${deliveryFee.toLocaleString()}\n` : ''}${discountAmount > 0 ? `Discount: -₦${discountAmount.toLocaleString()}\n` : ''}================================
+TOTAL PAYABLE: ₦${total.toLocaleString()}
+================================
+Payment Method: ${payment.payment_method?.replace('_', ' ').toUpperCase() || 'CASH'}
+Amount Paid: ₦${Number(payment.amount || order.amount_paid || total).toLocaleString()}
+${payment.amount_tendered ? `Amount Tendered: ₦${Number(payment.amount_tendered).toLocaleString()}\n` : ''}${payment.change_due > 0 ? `Change Due: ₦${Number(payment.change_due).toLocaleString()}\n` : ''}${payment.transaction_reference ? `Payment Ref: ${payment.transaction_reference}\n` : ''}--------------------------------
   Thank you for dining with us!
-  Authentic Taste • Quality Meals
+ Authentic Taste • Quality Meals
+     Please visit us again
 ================================
     `.trim();
 
@@ -221,83 +227,108 @@ ${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLo
         <div className="p-6 overflow-y-auto leading-tight print:p-0 print:overflow-visible">
           {format === 'thermal' ? (
             /* ================= 80MM THERMAL SLIP FORMAT (Xprinter XP-80C) ================= */
-            <div className="receipt-print-area max-w-[340px] mx-auto text-black font-sans text-xs space-y-3 bg-white p-2">
-              {/* Restaurant Masthead */}
-              <div className="text-center space-y-1">
+            <div className="receipt-print-area max-w-[72mm] w-[72mm] mx-auto text-black font-sans text-[11.5px] leading-tight bg-white p-1 box-border">
+              {/* 1. Restaurant Logo */}
+              <div className="text-center mb-1">
                 <img
                   src="/logo-thermal.png"
                   alt="Northern Flavors Logo"
-                  className="receipt-logo w-14 h-14 mx-auto object-contain mb-1"
+                  className="receipt-logo w-[28mm] h-[28mm] max-w-[28mm] max-h-[28mm] mx-auto object-contain block mb-1"
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src = '/logo.png';
                   }}
                 />
-                <h2 className="font-sans font-black text-base tracking-tight text-black uppercase">
-                  NORTHERN FLAVORS
-                </h2>
-                <p className="text-[10px] font-bold text-black uppercase tracking-wider">
-                  Restaurant & Grills
-                </p>
-                <p className="text-[10px] font-semibold text-black leading-tight">
-                  Gajambe Plaza, Yalwawa, Dutse, Jigawa State
-                </p>
-                <div className="text-[10px] font-bold text-black space-y-0.5 pt-0.5">
-                  <p>Hotline: 0906 820 2567</p>
-                  <p>Tel: 0813 139 3402 | 0904 353 8768</p>
-                </div>
               </div>
 
-              {/* Order Meta */}
-              <div className="border-t border-dashed border-black pt-2 space-y-1 text-[11px] font-semibold text-black">
-                <div className="flex justify-between">
-                  <span>Receipt No:</span>
-                  <span className="font-mono font-bold">{receipt.receipt_number}</span>
+              {/* 2. Restaurant Name */}
+              <div className="text-center">
+                <h1 className="font-sans font-bold text-[17px] text-black uppercase m-0 p-0 leading-tight tracking-normal">
+                  NORTHERN FLAVORS
+                </h1>
+              </div>
+
+              {/* 3. Restaurant Description */}
+              <div className="text-center mt-0.5">
+                <p className="text-[11px] font-medium text-black m-0 p-0">
+                  Authentic Taste • Quality Meals
+                </p>
+              </div>
+
+              {/* 4. Address and Telephone Contacts (separate lines to prevent cutoff) */}
+              <div className="text-center text-[11px] text-black mt-1 space-y-0.5 leading-tight">
+                <p className="font-normal m-0 p-0">Gajambe Plaza, Yalwawa, Dutse, Jigawa State</p>
+                <p className="font-medium m-0 p-0">Hotline: 0906 820 2567</p>
+                <p className="font-medium m-0 p-0">Tel: 0813 139 3402</p>
+                <p className="font-medium m-0 p-0">Tel: 0904 353 8768</p>
+              </div>
+
+              {/* 5. Separator */}
+              <div className="border-t border-dashed border-black my-2" />
+
+              {/* 6-10. Transaction Information (2-column layout) */}
+              <div className="space-y-1 text-[11.5px] text-black">
+                <div className="flex justify-between items-start">
+                  <span className="font-normal">Receipt No:</span>
+                  <span className="font-bold text-right font-mono">{receipt.receipt_number}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Order Ref:</span>
-                  <span className="font-mono font-bold">{order.order_number || receipt.metadata?.order_number || 'N/A'}</span>
+                <div className="flex justify-between items-start">
+                  <span className="font-normal">Order Ref:</span>
+                  <span className="font-bold text-right font-mono">{order.order_number || receipt.metadata?.order_number || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Order Type:</span>
-                  <span className="font-bold uppercase">{orderType}</span>
+                <div className="flex justify-between items-start">
+                  <span className="font-normal">Order Type:</span>
+                  <span className="font-bold text-right uppercase">{orderType.replace('_', ' ')}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Date:</span>
-                  <span>{new Date(receipt.issued_at).toLocaleString()}</span>
+                <div className="flex justify-between items-start">
+                  <span className="font-normal">Date & Time:</span>
+                  <span className="font-bold text-right">{new Date(receipt.issued_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Cashier:</span>
-                  <span className="font-bold">{cashierName}</span>
+                <div className="flex justify-between items-start">
+                  <span className="font-normal">Cashier:</span>
+                  <span className="font-bold text-right">{cashierName}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Customer:</span>
-                  <span>{customerName}</span>
-                </div>
+                {customerName && customerName !== 'Walk-in Customer' && (
+                  <div className="flex justify-between items-start">
+                    <span className="font-normal">Customer:</span>
+                    <span className="font-bold text-right">{customerName}</span>
+                  </div>
+                )}
                 {reprintCount > 0 && (
-                  <div className="text-center font-black text-[11px] uppercase pt-1 tracking-wider">
+                  <div className="text-center font-bold text-[11px] uppercase pt-1 tracking-wider">
                     *** REPRINT COPY #{reprintCount} ***
                   </div>
                 )}
               </div>
 
-              {/* Line Items */}
-              <div className="border-t border-dashed border-black pt-2">
-                <div className="flex justify-between font-black pb-1 text-[11px] uppercase border-b border-solid border-black">
-                  <span className="flex-1">Item</span>
-                  <span className="w-20 text-center">Qty x Price</span>
-                  <span className="w-16 text-right">Total</span>
+              {/* 11. Separator */}
+              <div className="border-t border-dashed border-black my-2" />
+
+              {/* 12. Purchased Items (3-column layout: Item Description | Qty | Amount) */}
+              <div>
+                <div className="flex items-center text-[11px] font-bold uppercase pb-1 border-b border-black">
+                  <span className="flex-1 text-left pr-1">Item Description</span>
+                  <span className="w-[8mm] text-center flex-shrink-0">Qty</span>
+                  <span className="w-[20mm] text-right flex-shrink-0">Amount</span>
                 </div>
-                <div className="space-y-1.5 pt-1.5 text-[11px] font-medium text-black">
+
+                <div className="divide-y divide-dotted divide-stone-300">
                   {items.map((item, idx) => (
-                    <div key={item.id || idx} className="flex justify-between items-start">
-                      <div className="flex-1 pr-1 break-words font-semibold">
-                        {item.product_name || 'Menu item'}
+                    <div key={item.id || idx} className="flex items-start text-[11px] py-1 text-black">
+                      <div className="flex-1 pr-1 text-left leading-snug min-w-0">
+                        <div className="font-medium text-black break-words">
+                          {item.product_name || 'Menu item'}
+                        </div>
+                        {Number(item.quantity) > 1 && (
+                          <div className="text-[10px] text-black">
+                            @ ₦{Number(item.unit_price).toLocaleString()} each
+                          </div>
+                        )}
                       </div>
-                      <div className="w-20 text-center text-[10px] whitespace-nowrap pt-0.5">
-                        {item.quantity} x ₦{Number(item.unit_price).toLocaleString()}
+                      <div className="w-[8mm] text-center font-bold flex-shrink-0 pt-0.5">
+                        {item.quantity}
                       </div>
-                      <div className="w-16 font-bold text-right whitespace-nowrap">
+                      <div className="w-[20mm] text-right font-bold flex-shrink-0 whitespace-nowrap pt-0.5">
                         ₦{Number(item.line_total).toLocaleString()}
                       </div>
                     </div>
@@ -305,71 +336,80 @@ ${payment.amount_tendered ? `Tendered: ₦${Number(payment.amount_tendered).toLo
                 </div>
               </div>
 
-              {/* Totals & Fees */}
-              <div className="border-t border-dashed border-black pt-2 space-y-1 text-[11px] font-semibold text-black">
-                <div className="flex justify-between">
-                  <span>Food Subtotal:</span>
-                  <span>₦{subtotal.toLocaleString()}</span>
+              {/* 13-17. Totals & Fees */}
+              <div className="border-t border-dashed border-black my-2 pt-1.5 space-y-1 text-[11.5px] text-black">
+                <div className="flex justify-between items-center font-normal">
+                  <span>Item Subtotal:</span>
+                  <span className="font-bold">₦{subtotal.toLocaleString()}</span>
                 </div>
 
                 {packagingFee > 0 && (
-                  <div className="flex justify-between font-bold">
+                  <div className="flex justify-between items-center font-normal">
                     <span>Takeaway Packaging:</span>
-                    <span>₦{packagingFee.toLocaleString()}</span>
+                    <span className="font-bold">₦{packagingFee.toLocaleString()}</span>
                   </div>
                 )}
 
                 {deliveryFee > 0 && (
-                  <div className="flex justify-between font-bold">
+                  <div className="flex justify-between items-center font-normal">
                     <span>Delivery Charge:</span>
-                    <span>₦{deliveryFee.toLocaleString()}</span>
+                    <span className="font-bold">₦{deliveryFee.toLocaleString()}</span>
                   </div>
                 )}
 
                 {discountAmount > 0 && (
-                  <div className="flex justify-between font-bold">
+                  <div className="flex justify-between items-center font-normal">
                     <span>Discount:</span>
-                    <span>-₦{discountAmount.toLocaleString()}</span>
+                    <span className="font-bold">-₦{discountAmount.toLocaleString()}</span>
                   </div>
                 )}
 
-                <div className="flex justify-between font-black text-sm pt-1.5 border-t border-solid border-black">
-                  <span>TOTAL PAYABLE:</span>
-                  <span className="text-base font-black">₦{total.toLocaleString()}</span>
+                {/* 17. Total Payable (15px to 17px, bold) */}
+                <div className="border-t-2 border-black my-1.5 pt-1.5 flex justify-between items-center">
+                  <span className="font-bold text-[15px]">TOTAL PAYABLE:</span>
+                  <span className="font-bold text-[17px]">₦{total.toLocaleString()}</span>
                 </div>
 
-                <div className="flex justify-between font-bold pt-1">
-                  <span>Paid ({payment.payment_method?.toUpperCase() || 'PAID'}):</span>
-                  <span>₦{Number(payment.amount || order.amount_paid || total).toLocaleString()}</span>
+                {/* 18-19. Payment Method & Amounts */}
+                <div className="border-t border-dashed border-black pt-1.5 space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="font-normal">Payment Method:</span>
+                    <span className="font-bold uppercase">{payment.payment_method?.replace('_', ' ') || 'PAID'}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="font-normal">Amount Paid:</span>
+                    <span className="font-bold">₦{Number(payment.amount || order.amount_paid || total).toLocaleString()}</span>
+                  </div>
+
+                  {payment.amount_tendered != null && Number(payment.amount_tendered) > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="font-normal">Amount Tendered:</span>
+                      <span className="font-bold">₦{Number(payment.amount_tendered).toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {payment.change_due != null && Number(payment.change_due) > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="font-normal">Change Due:</span>
+                      <span className="font-bold">₦{Number(payment.change_due).toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {payment.transaction_reference && (
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="font-normal">Transaction Ref:</span>
+                      <span className="font-mono font-bold">{payment.transaction_reference}</span>
+                    </div>
+                  )}
                 </div>
-
-                {payment.amount_tendered && (
-                  <div className="flex justify-between">
-                    <span>Amount Tendered:</span>
-                    <span>₦{Number(payment.amount_tendered).toLocaleString()}</span>
-                  </div>
-                )}
-
-                {payment.change_due > 0 && (
-                  <div className="flex justify-between font-black">
-                    <span>Change Due:</span>
-                    <span>₦{Number(payment.change_due).toLocaleString()}</span>
-                  </div>
-                )}
-
-                {payment.transaction_reference && (
-                  <div className="flex justify-between text-[10px]">
-                    <span>Transaction Ref:</span>
-                    <span className="font-mono">{payment.transaction_reference}</span>
-                  </div>
-                )}
               </div>
 
-              {/* Footer */}
-              <div className="border-t border-dashed border-black pt-2 text-center space-y-1 text-black">
-                <p className="font-bold text-[11px] uppercase tracking-wide">Thank you for dining with us!</p>
-                <p className="text-[10px] font-medium">Authentic Taste • Quality Ingredients</p>
-                <p className="text-[9px]">Please retain this slip for your records</p>
+              {/* 20. Footer Thank-you Message */}
+              <div className="border-t border-dashed border-black my-2 pt-2 text-center text-black leading-snug">
+                <p className="font-bold text-[11.5px] m-0">Thank you for dining with us!</p>
+                <p className="text-[10.5px] font-medium m-0 mt-0.5">Authentic Taste • Quality Meals</p>
+                <p className="text-[10px] m-0 mt-0.5">Please visit us again</p>
               </div>
             </div>
           ) : (
