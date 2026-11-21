@@ -6,21 +6,50 @@ export const orderService = {
       throw new Error('Database is not connected. Please check configuration.');
     }
 
+    if (!fullName || !fullName.trim()) {
+      throw new Error('Please enter your full name.');
+    }
+
+    const cleanPhone = phone ? phone.replace(/[^0-9+]/g, '') : '';
+    if (cleanPhone.length < 10) {
+      throw new Error('Please enter a valid phone number (at least 10 digits).');
+    }
+
+    if (!orderType || !['delivery', 'pickup'].includes(orderType)) {
+      throw new Error('Please select either delivery or pickup.');
+    }
+
+    if (orderType === 'delivery' && (!deliveryAddress || !deliveryAddress.trim())) {
+      throw new Error('Delivery address is required for delivery orders.');
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      throw new Error('Your basket is empty. Please add items before placing an order.');
+    }
+
+    // Validate that each product has a valid UUID
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const invalidItem = items.find(it => !it.id || !UUID_REGEX.test(it.id));
+    if (invalidItem) {
+      throw new Error(`Item "${invalidItem.name || 'in cart'}" has an outdated menu ID. Please clear your basket and re-select it from the menu.`);
+    }
+
     const { data, error } = await supabase.rpc('create_customer_order', {
       p_full_name: fullName.trim(),
-      p_phone: phone.trim(),
+      p_phone: cleanPhone,
       p_order_type: orderType,
       p_delivery_address: deliveryAddress ? deliveryAddress.trim() : null,
       p_notes: notes ? notes.trim() : null,
       p_items: items.map(item => ({
         product_id: item.id,
-        quantity: item.quantity,
+        quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
       })),
       p_idempotency_key: `IDEM-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     });
 
     if (error) {
-      throw new Error(error.message);
+      const msg = error.message || error.details || 'Unable to place order. Please check stock or try again.';
+      throw new Error(msg);
     }
 
     return data;

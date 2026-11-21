@@ -20,6 +20,28 @@ export const cashierService = {
   },
 
   /**
+   * Check if current client has an authenticated Supabase user session with staff/cashier privileges
+   */
+  async hasActiveStaffSession() {
+    if (!supabase) return false;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !session.user) return false;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, is_active')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (!profile || !profile.is_active) return false;
+      return ['super_admin', 'manager', 'cashier', 'staff', 'order_manager'].includes(profile.role);
+    } catch {
+      return false;
+    }
+  },
+
+  /**
    * Get current cashier dashboard KPIs and active shift
    */
   async getDashboardStats(shiftId = null) {
@@ -331,9 +353,9 @@ export const cashierService = {
     notes = null,
     shiftId = null,
   }) {
-    const hasSession = await this.hasActiveSession();
+    const hasStaffSession = await this.hasActiveStaffSession();
 
-    if (hasSession && supabase) {
+    if (hasStaffSession && supabase) {
       try {
         const { data, error } = await supabase.rpc('complete_pos_sale', {
           p_items: items,
@@ -349,6 +371,9 @@ export const cashierService = {
         });
 
         if (!error && data) return data;
+        if (error) {
+          console.warn('Remote complete_pos_sale RPC error, recording local POS sale:', error.message || error);
+        }
       } catch (err) {
         console.warn('Remote complete_pos_sale failed, recording local POS sale:', err);
       }
