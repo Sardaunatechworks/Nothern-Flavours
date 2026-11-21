@@ -34,6 +34,36 @@ export const orderService = {
       throw new Error(`Item "${invalidItem.name || 'in cart'}" has an outdated menu ID. Please clear your basket and re-select it from the menu.`);
     }
 
+    // Pre-flight check against live menu catalog to catch deleted, unavailable, or out-of-stock items gracefully
+    try {
+      const productIds = items.map(it => it.id);
+      const { data: dbProducts, error: dbError } = await supabase
+        .from('products')
+        .select('id, name, is_available, track_stock, stock_quantity')
+        .in('id', productIds)
+        .is('deleted_at', null);
+
+      if (!dbError && dbProducts) {
+        const prodMap = new Map(dbProducts.map(p => [p.id, p]));
+        for (const it of items) {
+          const dbProd = prodMap.get(it.id);
+          if (!dbProd) {
+            throw new Error(`"${it.name || 'An item'}" in your basket is no longer available on the active menu. Please reset your basket and select fresh items.`);
+          }
+          if (dbProd.is_available === false) {
+            throw new Error(`"${dbProd.name}" is currently marked unavailable.`);
+          }
+          if (dbProd.track_stock && dbProd.stock_quantity < it.quantity) {
+            throw new Error(`Only ${dbProd.stock_quantity} portion(s) available for "${dbProd.name}" (you requested ${it.quantity}).`);
+          }
+        }
+      }
+    } catch (checkErr) {
+      if (checkErr.message && !checkErr.message.includes('fetch')) {
+        throw checkErr;
+      }
+    }
+
     const { data, error } = await supabase.rpc('create_customer_order', {
       p_full_name: fullName.trim(),
       p_phone: cleanPhone,
@@ -48,6 +78,12 @@ export const orderService = {
     });
 
     if (error) {
+      console.error('❌ Supabase create_customer_order RPC Error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
       const msg = error.message || error.details || 'Unable to place order. Please check stock or try again.';
       throw new Error(msg);
     }

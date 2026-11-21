@@ -193,9 +193,27 @@ export default function CheckoutModal({ onClose, onSuccess }) {
             /* Checkout Form View */
             <form onSubmit={handleSubmit} className="space-y-5">
               {serverError && (
-                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{serverError}</span>
+                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 flex flex-col gap-2 text-xs text-red-700">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span className="font-medium leading-relaxed">{serverError}</span>
+                  </div>
+                  {(serverError.toLowerCase().includes('outdated') ||
+                    serverError.toLowerCase().includes('no longer available') ||
+                    serverError.toLowerCase().includes('not found') ||
+                    serverError.toLowerCase().includes('stock') ||
+                    serverError.toLowerCase().includes('unavailable')) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearBasket();
+                        onClose();
+                      }}
+                      className="self-start mt-1 px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-900 font-bold text-[11px] transition-colors"
+                    >
+                      Clear Stale Basket & Browse Fresh Menu
+                    </button>
+                  )}
                 </div>
               )}
 
