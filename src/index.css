@@ -68,6 +68,8 @@
     visibility: hidden !important;
   }
 
+  body.printing-receipt #print-receipt,
+  body.printing-receipt #print-receipt *,
   body.printing-receipt .receipt-print-area,
   body.printing-receipt .receipt-print-area * {
     visibility: visible !important;
@@ -78,6 +80,8 @@
     visibility: hidden !important;
   }
 
+  body.printing-a4 #print-receipt-a4,
+  body.printing-a4 #print-receipt-a4 *,
   body.printing-a4 .receipt-print-area-a4,
   body.printing-a4 .receipt-print-area-a4 * {
     visibility: visible !important;

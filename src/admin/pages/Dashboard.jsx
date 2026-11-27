@@ -222,11 +222,10 @@ export default function Dashboard() {
                     </td>
                     <td className="py-3 px-4">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          ord.payment_status === 'paid'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${ord.payment_status === 'paid'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                          }`}
                       >
                         {ord.payment_status}
                       </span>

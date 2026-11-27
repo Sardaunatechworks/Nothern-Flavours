@@ -4,19 +4,22 @@ import { cashierService } from '../services/cashierService';
 
 export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onReprintSuccess }) {
   const [format, setFormat] = useState('thermal'); // 'thermal' (80mm) | 'a4'
+  const [isPrinting, setIsPrinting] = useState(false);
   const [reprinting, setReprinting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reprintCount, setReprintCount] = useState(receipt?.reprint_count || 0);
 
-  // Clean up printing classes if print dialog finishes or is cancelled
+  // Clean up printing classes & lock if print dialog finishes or is cancelled
   useEffect(() => {
     const handleAfterPrint = () => {
       document.body.classList.remove('printing-receipt', 'printing-a4');
+      setIsPrinting(false);
     };
     window.addEventListener('afterprint', handleAfterPrint);
     return () => {
       window.removeEventListener('afterprint', handleAfterPrint);
       document.body.classList.remove('printing-receipt', 'printing-a4');
+      setIsPrinting(false);
     };
   }, []);
 
@@ -39,6 +42,9 @@ export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onRep
    * sets the targeted printing class, and invokes Chrome's print dialog.
    */
   const triggerPrint = async (targetFormat = format) => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+
     try {
       // 1. Ensure web fonts are ready
       if (document.fonts && document.fonts.ready) {
@@ -46,8 +52,8 @@ export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onRep
       }
 
       // 2. Ensure receipt logo and any images are fully loaded & decoded
-      const selector = targetFormat === 'a4' ? '.receipt-print-area-a4' : '.receipt-print-area';
-      const printContainer = document.querySelector(selector);
+      const selector = targetFormat === 'a4' ? '#print-receipt-a4' : '#print-receipt';
+      const printContainer = document.querySelector(selector) || document.querySelector('.receipt-print-area');
       if (printContainer) {
         const imgs = Array.from(printContainer.querySelectorAll('img'));
         await Promise.all(
@@ -68,10 +74,14 @@ export default function ThermalReceiptModal({ receipt, onClose, onNewSale, onRep
     document.body.classList.add(printClass);
 
     setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        document.body.classList.remove('printing-receipt', 'printing-a4');
-      }, 500);
+      try {
+        window.print();
+      } finally {
+        setTimeout(() => {
+          document.body.classList.remove('printing-receipt', 'printing-a4');
+          setIsPrinting(false);
+        }, 500);
+      }
     }, 100);
   };
 
@@ -179,10 +189,11 @@ ${payment.amount_tendered ? `Amount Tendered: ₦${Number(payment.amount_tendere
           {/* Primary Action 1: Print Receipt */}
           <button
             onClick={handlePrint}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-forest-800 text-gold-300 font-bold text-xs rounded-xl hover:bg-forest-900 transition shadow-sm"
+            disabled={isPrinting}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-forest-800 disabled:opacity-50 text-gold-300 font-bold text-xs rounded-xl hover:bg-forest-900 transition shadow-sm"
           >
-            <Printer className="w-4 h-4" />
-            Print Receipt
+            <Printer className={`w-4 h-4 ${isPrinting ? 'animate-pulse' : ''}`} />
+            {isPrinting ? 'Preparing Print...' : 'Print Receipt'}
           </button>
 
           {/* Primary Action 2: New Sale */}
@@ -227,7 +238,7 @@ ${payment.amount_tendered ? `Amount Tendered: ₦${Number(payment.amount_tendere
         <div className="p-6 overflow-y-auto leading-tight print:p-0 print:overflow-visible">
           {format === 'thermal' ? (
             /* ================= 80MM THERMAL SLIP FORMAT (Xprinter XP-80C) ================= */
-            <div className="receipt-print-area max-w-[72mm] w-[72mm] mx-auto text-black font-sans text-[11.5px] leading-tight bg-white p-1 box-border">
+            <div id="print-receipt" className="receipt-print-area max-w-[72mm] w-[72mm] mx-auto text-black font-sans text-[11.5px] leading-tight bg-white p-1 box-border">
               {/* 1. Restaurant Logo */}
               <div className="text-center mb-1">
                 <img
@@ -414,7 +425,7 @@ ${payment.amount_tendered ? `Amount Tendered: ₦${Number(payment.amount_tendere
             </div>
           ) : (
             /* ================= A4 INVOICE FORMAT ================= */
-            <div className="receipt-print-area-a4 p-8 space-y-6 text-sm text-stone-900 font-sans">
+            <div id="print-receipt-a4" className="receipt-print-area-a4 p-8 space-y-6 text-sm text-stone-900 font-sans">
               <div className="flex justify-between items-start border-b border-stone-200 pb-6">
                 <div className="flex items-center gap-3">
                   <img
